@@ -6,28 +6,24 @@ import { PlantData } from "./models";
 import sharp from "sharp";
 import { fromFetch } from "rxjs/fetch";
 
-// upload to tigris with naming schema set / metadata somehow 
 const iNaturalistService = new INaturalistService();
 const mySiteService = new WhatGrowsNativeHereService();
 const timeBetweenSpeciesRequestBundlesMs = 1_000;
 const maxThumbnailWidthPx = 400;
-// TODO get all scientific names of the native plants to use for pulling observations to cycle thru
-// TODO limit api hits to 1 per second
 
 // TAXA is good for one best photo, maybe do a secondary set of photos from observations for each? 
 // prob a way to do both the requests at once and combine the results
 
-// TODO use my websites api for all plants to cycle thru each one, debounce each subsequent request at 1s
-
 mySiteService.getPlantData().pipe(
     mergeMap((x: readonly PlantData[]) => x),
     concatMap((plant: PlantData) =>
-        of(plant.scientificName).pipe(
+        of(plant.scientificName).pipe( // TODO perhaps have to split up handling for these if i detect subspecies... could require a separate query
             delay(timeBetweenSpeciesRequestBundlesMs),
             mergeMap((name) => iNaturalistService.getTaxa(name)),
             mergeMap((x: Response) => defer(() => x.json())),
             map((json: any) => {
                 console.log(json);
+                // HACK only expecting one result rn, will change??
                 if (json.results[0].default_photo != null)
                     json.results[0].default_photo.url = json.results[0].default_photo.url.replace('square', 'original');
                 return { plant, json };  // <-- both available here
@@ -45,6 +41,7 @@ mySiteService.getPlantData().pipe(
             map(([imgBuffer, thumbnailBuffer]) => {
                 // TODO upload at this point?? we have the avifs saved in the proper quality / format / size 
             }),
+            // TODO upload to tigris with naming schema set / metadata somehow 
         )
     }),
     catchError((err) => { console.error(err); return of(); })
