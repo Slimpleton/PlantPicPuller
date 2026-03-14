@@ -1,5 +1,5 @@
 import { fromFetch } from 'rxjs/fetch';
-import { map, Observable, switchMap } from 'rxjs';
+import { catchError, map, Observable, of, switchMap } from 'rxjs';
 
 export class INaturalistService {
     private static readonly _BASE_URL: string = 'https://api.inaturalist.org/v1/'
@@ -9,7 +9,7 @@ export class INaturalistService {
         const perPageAmount: number = 25;
 
         return this.getTaxon(scientificName).pipe(
-            switchMap((id) => {
+            switchMap((id: number) => {
                 const params = new URLSearchParams({
                     'quality_grade': 'research',
                     'license': 'cc0,cc-by',
@@ -19,7 +19,7 @@ export class INaturalistService {
                     'order_by': 'votes',
                     'order': 'desc',
                 });
-        
+
                 const url: URL = new URL(`${INaturalistService._BASE_URL}observations?${params}`);
                 return fromFetch(url.toString());
             }));
@@ -29,7 +29,7 @@ export class INaturalistService {
         const perPageAmount: number = 25;
 
         return this.getTaxon(scientificName).pipe(
-            switchMap((id: number) =>{
+            switchMap((id: number) => {
                 const params = new URLSearchParams({
                     'quality_grade': 'research',
                     'license': 'cc0,cc-by',
@@ -39,13 +39,14 @@ export class INaturalistService {
                     'order_by': 'votes',
                     'order': 'desc',
                 });
-        
+
                 const url: URL = new URL(`${INaturalistService._BASE_URL}taxa?${params}`);
                 return fromFetch(url.toString());
             })
         );
     }
 
+    // TODO subspecies struggle with the regular taxa endpoint, swap to observations for those instead somehow?? detect subspecies difference in strings 
     private getTaxon(scientificName: string): Observable<number> {
         const taxaParams = new URLSearchParams({
             'q': scientificName,
@@ -54,7 +55,8 @@ export class INaturalistService {
             'per_page': '1'
         });
         return fromFetch(`${INaturalistService._BASE_URL}taxa?${taxaParams}`).pipe(
-            switchMap((res) => res.json()),
-            map((json) => json.results[0].id));
+            switchMap((res: any) => res.json()),
+            map((json: any) => json.results[0].id),
+            catchError((err) => { console.error('scientificName: ' + scientificName, err); return of(NaN); }));
     }
 }
