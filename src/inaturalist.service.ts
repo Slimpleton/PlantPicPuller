@@ -1,10 +1,6 @@
 import { fromFetch } from 'rxjs/fetch';
 import { map, Observable, switchMap } from 'rxjs';
 
-export interface Observation {
-
-}
-
 export class INaturalistService {
     private static readonly _BASE_URL: string = 'https://api.inaturalist.org/v1/'
     public constructor() { }
