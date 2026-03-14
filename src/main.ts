@@ -33,10 +33,9 @@ mySiteService.getPlantData().pipe(
     map(({ plant, json }) => {
         const images$ = fromFetch(json.results[0].default_photo.url).pipe(
             switchMap((response) => defer(() => response.arrayBuffer())),
-            switchMap((buffer) => defer(() => sharp(buffer).avif({ quality: 100 }).toBuffer())),
             switchMap((buffer) => forkJoin([
-                of(buffer),
-                defer(() => sharp(buffer).resize(maxThumbnailWidthPx, null, { fit: 'inside' }).toBuffer())
+                defer(() => sharp(buffer).avif({ quality: 100 }).toBuffer()),
+                defer(() => sharp(buffer).resize(maxThumbnailWidthPx, null, { fit: 'inside' }).avif({ quality: 90 }).toBuffer())
             ])),
             map(([imgBuffer, thumbnailBuffer]) => {
                 // TODO upload at this point?? we have the avifs saved in the proper quality / format / size 
