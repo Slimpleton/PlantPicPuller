@@ -1,13 +1,16 @@
-import { catchError, concatMap, delay, map, mergeMap, switchMap, tap } from "rxjs/operators";
+import { catchError, concatMap, delay, map, mergeMap, switchMap } from "rxjs/operators";
 import { INaturalistService } from "./inaturalist.service";
-import { defer, of } from "rxjs";
+import { defer, forkJoin, of } from "rxjs";
 import { WhatGrowsNativeHereService } from "./whatgrowsnativehere.service";
 import { PlantData } from "./models";
+import sharp from "sharp";
+import { fromFetch } from "rxjs/fetch";
 
 // upload to tigris with naming schema set / metadata somehow 
 const iNaturalistService = new INaturalistService();
 const mySiteService = new WhatGrowsNativeHereService();
 const timeBetweenSpeciesRequestBundlesMs = 1_000;
+const maxThumbnailWidthPx = 400;
 // TODO get all scientific names of the native plants to use for pulling observations to cycle thru
 // TODO limit api hits to 1 per second
 
@@ -18,26 +21,34 @@ const timeBetweenSpeciesRequestBundlesMs = 1_000;
 
 mySiteService.getPlantData().pipe(
     mergeMap((x: readonly PlantData[]) => x),
-    map((x: PlantData) => x.scientificName),
-    concatMap((x: string) =>
-        of(x).pipe(
-            delay(timeBetweenSpeciesRequestBundlesMs),  // delay per item, not globally
-            mergeMap((name) => iNaturalistService.getTaxa(name))
+    concatMap((plant: PlantData) =>
+        of(plant.scientificName).pipe(
+            delay(timeBetweenSpeciesRequestBundlesMs),
+            mergeMap((name) => iNaturalistService.getTaxa(name)),
+            mergeMap((x: Response) => defer(() => x.json())),
+            map((json: any) => {
+                console.log(json);
+                if (json.results[0].default_photo != null)
+                    json.results[0].default_photo.url = json.results[0].default_photo.url.replace('square', 'original');
+                return { plant, json };  // <-- both available here
+            }),
         )
     ),
-    mergeMap((x: Response) => defer(() => x.json())),
-    tap((json: any) => {
-        console.log('json', json);
-        json.results.forEach((observation: any) => {
-            if (observation.default_photo != null) {
-                observation.default_photo.url = observation.default_photo.url.replace('square', 'original');
-            }
-            console.log('observation', observation);
-        });
+    map(({ plant, json }) => {
+        const images$ = fromFetch(json.results[0].default_photo.url).pipe(
+            switchMap((response) => defer(() => response.arrayBuffer())),
+            switchMap((buffer) => defer(() => sharp(buffer).avif({ quality: 100 }).toBuffer())),
+            switchMap((buffer) => forkJoin([
+                of(buffer),
+                defer(() => sharp(buffer).resize(maxThumbnailWidthPx, null, { fit: 'inside' }).toBuffer())
+            ])),
+            map(([imgBuffer, thumbnailBuffer]) => {
+                // TODO upload at this point?? we have the avifs saved in the proper quality / format / size 
+            }),
+        )
     }),
     catchError((err) => { console.error(err); return of(); })
 ).subscribe();
 
-// TODO use sharp to convert to avif format and make size srcsets for performance
-
+// TODO make sure to credit those with cc-by and even cc-0 cuz i luv yall save dat metadata
 

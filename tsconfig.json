@@ -4,6 +4,7 @@
     "module": "EsNext",
     "moduleResolution": "Bundler",
     "lib": ["ES2023", "DOM"],
+    "types":["node"],
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
