@@ -1,3 +1,6 @@
+import {fromFetch} from 'rxjs/fetch';
+import { Observable } from 'rxjs';
+
 export interface Observation {
 
 }
@@ -6,7 +9,7 @@ export class INaturalistService {
     private static readonly _BASE_URL: string = 'https://api.inaturalist.org/v1/'
     public constructor() { }
 
-    public async getObservation(scientificName: string): Promise<Response> {
+    public getObservation(scientificName: string): Observable<Response> {
         const perPageAmount: number = 200;
         const params = new URLSearchParams ({
             'iconic_taxa': 'Plantae',
@@ -19,6 +22,6 @@ export class INaturalistService {
         });
 
         const url: URL = new URL(`${INaturalistService._BASE_URL}observations?${params}`);
-        return fetch(url);
+        return fromFetch(url.toString());
     }
 }
