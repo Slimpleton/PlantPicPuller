@@ -15,6 +15,8 @@ export class INaturalistService {
                     'quality_grade': 'research',
                     'photos': true.toString(),
                     'native': true.toString(),
+                    'captive': false.toString(),
+                    'geo': true.toString(),
                     'license': 'cc0,cc-by',
                     'photo_license': 'cc0,cc-by',
                     'taxon_id': String(id),

@@ -1,8 +1,8 @@
-import { catchError, concatMap, delay, filter, map, mergeMap, switchMap, tap } from "rxjs/operators";
+import { catchError, concatMap, delay, map, mergeMap, switchMap } from "rxjs/operators";
 import { INaturalistService } from "./inaturalist.service";
-import { defer, forkJoin, Observable, of } from "rxjs";
+import { defer, forkJoin, of } from "rxjs";
 import { WhatGrowsNativeHereService } from "./whatgrowsnativehere.service";
-import { PlantData } from "./models";
+import { PlantData, ProcessedObservationPhoto } from "./models";
 import { fromFetch } from "rxjs/fetch";
 import { ImageService } from "./image.service";
 
@@ -23,61 +23,67 @@ mySiteService.getPlantData().pipe(
                 defer(() => iNaturalistService.getTaxa(name)),
                 defer(() => iNaturalistService.getObservation(name)),
             ])),
-            tap(([taxaJson, obsJson]) => {
-                if (taxaJson?.results?.at(0)?.default_photo?.url != null) {
-                    taxaJson.results.at(0)!.default_photo!.url = taxaJson.results.at(0)!.default_photo!.url!.replace('square', 'original');
+            map(([taxaJson, obsJson]) => {
+                const taxaResult = taxaJson?.results?.[0];
+                if (taxaResult?.default_photo?.url) {
+                    taxaResult.default_photo.url = taxaResult.default_photo.url.replace('square', 'original');
                 }
 
-                for (const result of obsJson.results!) {
-                    result.photos!.forEach(photo => {
-                        photo.url = photo.url!.replace('square', 'original');
+                for (const result of obsJson.results ?? []) {
+                    result.photos?.forEach(photo => {
+                        if (photo.url) photo.url = photo.url.replace('square', 'original');
                     });
                 }
-            }),
-            map(([json, obsJson]) => {
-                return { plant, json, obsJson };  // <-- all available here
+
+                return { plant, taxaJson, obsJson };
             }),
         )
     ),
-    map(({ plant, json, obsJson }) => {
-        if (json != null) {
-            // TODO use this
-            const taxaImages$ = fromFetch<ArrayBuffer>(json!.results![0].default_photo!.url!, {
-                selector: (response) => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
-                    }
-                    return response.arrayBuffer() as Promise<ArrayBuffer>;
-                },
-            }).pipe(ImageService.CreateImageAndThumbnail());
+    map(({ plant, taxaJson, obsJson }) => {
+        // Taxa image (optional)
+        const taxaImage$ = taxaJson?.results?.[0]?.default_photo?.url
+            ? fromFetch<ArrayBuffer>(taxaJson.results[0].default_photo.url, {
+                selector: ImageService.getArrayBuffer,
+            }).pipe(ImageService.CreateImageAndThumbnail())
+            : of(null);
+
+        // One forkJoin per observation (all photos in that obs in parallel)
+        // TODO rethink this, it makes pairing the license metadata to each individual image difficult
+        const processedObsPhotos: ProcessedObservationPhoto[] = obsJson.results!.map(obs =>
+            ImageService.toProcessedObservationPhoto(
+                (obs.photos ?? []).map(photo =>
+                    fromFetch<ArrayBuffer>(photo.url!, { selector: ImageService.getArrayBuffer })
+                        .pipe(ImageService.CreateImageAndThumbnail())
+                ),
+                obs,
+            )
+        );
+        return {
+            plant: plant,
+            taxaImages: ImageService.toProcessedTaxonPhoto(taxaImage$, taxaJson?.results?.[0] ?? null),
+            obsImageGroups: processedObsPhotos,
+        };
+    }),
+    switchMap(({ plant, taxaImages, obsImageGroups: obsImageGroups$ }) => {
+        const symbol = plant.acceptedSymbol;
+        if (!taxaImages) {
 
         }
-
-        const obsImageGroups$ = [];
-        // TODO start a image thumbnail creation for each photo within each observation within this loop
-        obsJson.results!.forEach(obs => {
-            const imageGroup$: Observable<[Buffer<ArrayBufferLike>, Buffer<ArrayBufferLike>]>[] = [];
-            // todo a forkjoin of photo requests per observable? 
-            // todo a forkjoin of all observable photo requests total to get all of the finished ones
-            obs.photos!.forEach(photo => {
-                const image$ = fromFetch<ArrayBuffer>(photo.url!, {
-                    selector: (response) => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
-                        }
-                        return response.arrayBuffer() as Promise<ArrayBuffer>;
-                    },
-                }).pipe(ImageService.CreateImageAndThumbnail());
-
-                imageGroup$.push(image$);
-            });
-            obsImageGroups$.push(imageGroup$);
-        });
-
-        // TODO upload to tigris with naming schema set / metadata somehow 
+        // TODO use the plant info and each of the generated images /metadata to create a url for each and premade csv rows to insert/create
+        return of();
     }),
+    // TODO how to store the name of each file and how it maps to each species. 
+    // prob need a csv map or json? maybe a csv column thats delimited diff 
+    // store metadata in csv
+    // TODO upload to tigris with naming schema set / metadata somehow 
     catchError((err) => { console.error(err); return of(); })
-).subscribe();
+).subscribe({
+    next: () => console.log('got to the end'),
+    error: (err) =>console.error(err),
+});
+
+
+
 
 // TODO make sure to credit those with cc-by and even cc-0 cuz i luv yall save dat metadata
 

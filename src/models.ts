@@ -1,3 +1,5 @@
+import { Observable } from "rxjs";
+
 export type GrowthForm = 'Bunch' | 'Colonizing' | 'Multiple Stem' | 'Rhizomatous' | 'Single Crown' | 'Single Stem' | 'Stoloniferous' | 'Thicket Forming';
 export type Color = 'Black' | 'Blue' | 'Brown' | 'Green' | 'Orange' | 'Purple' | 'Red' | 'White' | 'Yellow' | 'Dark Green' | 'Gray-Green' | 'White-Gray' | 'Yellow-Green';
 export type Rate = 'Moderate' | 'None' | 'Rapid' | 'Slow';
@@ -18,139 +20,139 @@ export type GrowthHabit = 'Forb/herb' | 'Shrub' | 'Subshrub' | 'Graminoid' | 'Li
 
 // US States and Canadian Provinces/Territories for PLANTS Database
 export type LocationCode =
-    | 'AL' // Alabama
-    | 'AK' // Alaska
-    | 'AZ' // Arizona
-    | 'AR' // Arkansas
-    | 'CA' // California
-    | 'CO' // Colorado
-    | 'CT' // Connecticut
-    | 'DC' // Washington DC
-    | 'DE' // Delaware
-    | 'FL' // Florida
-    | 'GA' // Georgia
-    | 'HI' // Hawaii
-    | 'ID' // Idaho
-    | 'IL' // Illinois
-    | 'IN' // Indiana
-    | 'IA' // Iowa
-    | 'KS' // Kansas
-    | 'KY' // Kentucky
-    | 'LA' // Louisiana
-    | 'ME' // Maine
-    | 'MD' // Maryland
-    | 'MA' // Massachusetts
-    | 'MI' // Michigan
-    | 'MN' // Minnesota
-    | 'MS' // Mississippi
-    | 'MO' // Missouri
-    | 'MT' // Montana
-    | 'NE' // Nebraska
-    | 'NV' // Nevada
-    | 'NH' // New Hampshire
-    | 'NJ' // New Jersey
-    | 'NM' // New Mexico
-    | 'NY' // New York
-    | 'NC' // North Carolina
-    | 'ND' // North Dakota
-    | 'OH' // Ohio
-    | 'OK' // Oklahoma
-    | 'OR' // Oregon
-    | 'PA' // Pennsylvania
-    | 'RI' // Rhode Island
-    | 'SC' // South Carolina
-    | 'SD' // South Dakota
-    | 'TN' // Tennessee
-    | 'TX' // Texas
-    | 'UT' // Utah
-    | 'VT' // Vermont
-    | 'VA' // Virginia
-    | 'WA' // Washington
-    | 'WV' // West Virginia
-    | 'WI' // Wisconsin
-    | 'WY' // Wyoming
+  | 'AL' // Alabama
+  | 'AK' // Alaska
+  | 'AZ' // Arizona
+  | 'AR' // Arkansas
+  | 'CA' // California
+  | 'CO' // Colorado
+  | 'CT' // Connecticut
+  | 'DC' // Washington DC
+  | 'DE' // Delaware
+  | 'FL' // Florida
+  | 'GA' // Georgia
+  | 'HI' // Hawaii
+  | 'ID' // Idaho
+  | 'IL' // Illinois
+  | 'IN' // Indiana
+  | 'IA' // Iowa
+  | 'KS' // Kansas
+  | 'KY' // Kentucky
+  | 'LA' // Louisiana
+  | 'ME' // Maine
+  | 'MD' // Maryland
+  | 'MA' // Massachusetts
+  | 'MI' // Michigan
+  | 'MN' // Minnesota
+  | 'MS' // Mississippi
+  | 'MO' // Missouri
+  | 'MT' // Montana
+  | 'NE' // Nebraska
+  | 'NV' // Nevada
+  | 'NH' // New Hampshire
+  | 'NJ' // New Jersey
+  | 'NM' // New Mexico
+  | 'NY' // New York
+  | 'NC' // North Carolina
+  | 'ND' // North Dakota
+  | 'OH' // Ohio
+  | 'OK' // Oklahoma
+  | 'OR' // Oregon
+  | 'PA' // Pennsylvania
+  | 'RI' // Rhode Island
+  | 'SC' // South Carolina
+  | 'SD' // South Dakota
+  | 'TN' // Tennessee
+  | 'TX' // Texas
+  | 'UT' // Utah
+  | 'VT' // Vermont
+  | 'VA' // Virginia
+  | 'WA' // Washington
+  | 'WV' // West Virginia
+  | 'WI' // Wisconsin
+  | 'WY' // Wyoming
 
-    | 'AB' // Alberta
-    | 'BC' // British Columbia
-    | 'MB' // Manitoba
-    | 'NB' // New Brunswick
-    | 'NL' // Newfoundland and Labrador
-    | 'NT' // Northwest Territories
-    | 'NS' // Nova Scotia
-    | 'NU' // Nunavut
-    | 'ON' // Ontario
-    | 'PE' // Prince Edward Island
-    | 'QC' // Quebec
-    | 'SK' // Saskatchewan
-    | 'YT' // Yukon Territory
-    | 'NF' // NewFoundland
-    | 'LB' // Labrador
+  | 'AB' // Alberta
+  | 'BC' // British Columbia
+  | 'MB' // Manitoba
+  | 'NB' // New Brunswick
+  | 'NL' // Newfoundland and Labrador
+  | 'NT' // Northwest Territories
+  | 'NS' // Nova Scotia
+  | 'NU' // Nunavut
+  | 'ON' // Ontario
+  | 'PE' // Prince Edward Island
+  | 'QC' // Quebec
+  | 'SK' // Saskatchewan
+  | 'YT' // Yukon Territory
+  | 'NF' // NewFoundland
+  | 'LB' // Labrador
 
-    | 'PR' // Puerto Rico
-    | 'VI' // US Virgin Islands
-    | 'GU' // Guam
-    | 'AS' // American Samoa
-    | 'MP'// Northern Mariana Islands  
-    | 'PW' // Pacific West/Wake Island region
-    | 'UM' // US Minor Outlying Islands
-    | 'NAV' // Navajo Nation
-    | 'FM'
-    | 'MH'; //Marshal islands
+  | 'PR' // Puerto Rico
+  | 'VI' // US Virgin Islands
+  | 'GU' // Guam
+  | 'AS' // American Samoa
+  | 'MP'// Northern Mariana Islands  
+  | 'PW' // Pacific West/Wake Island region
+  | 'UM' // US Minor Outlying Islands
+  | 'NAV' // Navajo Nation
+  | 'FM'
+  | 'MH'; //Marshal islands
 
 // Generate valid codes from the union type
 export const validLocationCodes: Set<LocationCode> = new Set([
-    // US States
-    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA', 'HI', 'ID',
-    'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS',
-    'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK',
-    'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV',
-    'WI', 'WY',
-    // Canadian Provinces/Territories
-    'AB', 'BC', 'MB', 'NB', 'NL', 'NT', 'NS', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT', 'NF', 'LB',
-    // US Territories
-    'PR', 'VI', 'GU', 'AS', 'MP', 'PW', 'UM', 'NAV', 'FM', 'MH'
+  // US States
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA', 'HI', 'ID',
+  'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS',
+  'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK',
+  'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV',
+  'WI', 'WY',
+  // Canadian Provinces/Territories
+  'AB', 'BC', 'MB', 'NB', 'NL', 'NT', 'NS', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT', 'NF', 'LB',
+  // US Territories
+  'PR', 'VI', 'GU', 'AS', 'MP', 'PW', 'UM', 'NAV', 'FM', 'MH'
 ] as const);
 
 // Mapping from individual location codes to native status regions
 export const LocationToNativeRegion: Record<LocationCode, NativeLocationCode[]> = {
-    // US States (Lower 48)
-    'AL': ['L48', 'NA'], 'AR': ['L48', 'NA'], 'AZ': ['L48', 'NA'], 'CA': ['L48', 'NA'], 'CO': ['L48', 'NA'],
-    'CT': ['L48', 'NA'], 'DC': ['L48', 'NA'], 'DE': ['L48', 'NA'], 'FL': ['L48', 'NA'], 'GA': ['L48', 'NA'],
-    'IL': ['L48', 'NA'], 'IN': ['L48', 'NA'], 'IA': ['L48', 'NA'], 'KS': ['L48', 'NA'], 'KY': ['L48', 'NA'],
-    'LA': ['L48', 'NA'], 'ME': ['L48', 'NA'], 'MD': ['L48', 'NA'], 'MA': ['L48', 'NA'], 'MI': ['L48', 'NA'],
-    'MN': ['L48', 'NA'], 'MS': ['L48', 'NA'], 'MO': ['L48', 'NA'], 'MT': ['L48', 'NA'], 'NE': ['L48', 'NA'],
-    'NV': ['L48', 'NA'], 'NH': ['L48', 'NA'], 'NJ': ['L48', 'NA'], 'NM': ['L48', 'NA'], 'NY': ['L48', 'NA'],
-    'NC': ['L48', 'NA'], 'ND': ['L48', 'NA'], 'OH': ['L48', 'NA'], 'OK': ['L48', 'NA'], 'OR': ['L48', 'NA'],
-    'PA': ['L48', 'NA'], 'RI': ['L48', 'NA'], 'SC': ['L48', 'NA'], 'SD': ['L48', 'NA'], 'TN': ['L48', 'NA'],
-    'TX': ['L48', 'NA'], 'UT': ['L48', 'NA'], 'VT': ['L48', 'NA'], 'VA': ['L48', 'NA'], 'WA': ['L48', 'NA'],
-    'WV': ['L48', 'NA'], 'WI': ['L48', 'NA'], 'WY': ['L48', 'NA'], 'ID': ['L48', 'NA'],
+  // US States (Lower 48)
+  'AL': ['L48', 'NA'], 'AR': ['L48', 'NA'], 'AZ': ['L48', 'NA'], 'CA': ['L48', 'NA'], 'CO': ['L48', 'NA'],
+  'CT': ['L48', 'NA'], 'DC': ['L48', 'NA'], 'DE': ['L48', 'NA'], 'FL': ['L48', 'NA'], 'GA': ['L48', 'NA'],
+  'IL': ['L48', 'NA'], 'IN': ['L48', 'NA'], 'IA': ['L48', 'NA'], 'KS': ['L48', 'NA'], 'KY': ['L48', 'NA'],
+  'LA': ['L48', 'NA'], 'ME': ['L48', 'NA'], 'MD': ['L48', 'NA'], 'MA': ['L48', 'NA'], 'MI': ['L48', 'NA'],
+  'MN': ['L48', 'NA'], 'MS': ['L48', 'NA'], 'MO': ['L48', 'NA'], 'MT': ['L48', 'NA'], 'NE': ['L48', 'NA'],
+  'NV': ['L48', 'NA'], 'NH': ['L48', 'NA'], 'NJ': ['L48', 'NA'], 'NM': ['L48', 'NA'], 'NY': ['L48', 'NA'],
+  'NC': ['L48', 'NA'], 'ND': ['L48', 'NA'], 'OH': ['L48', 'NA'], 'OK': ['L48', 'NA'], 'OR': ['L48', 'NA'],
+  'PA': ['L48', 'NA'], 'RI': ['L48', 'NA'], 'SC': ['L48', 'NA'], 'SD': ['L48', 'NA'], 'TN': ['L48', 'NA'],
+  'TX': ['L48', 'NA'], 'UT': ['L48', 'NA'], 'VT': ['L48', 'NA'], 'VA': ['L48', 'NA'], 'WA': ['L48', 'NA'],
+  'WV': ['L48', 'NA'], 'WI': ['L48', 'NA'], 'WY': ['L48', 'NA'], 'ID': ['L48', 'NA'],
 
-    // Alaska and Hawaii (separate regions)
-    'AK': ['AK'],
-    'HI': ['HI'],
+  // Alaska and Hawaii (separate regions)
+  'AK': ['AK'],
+  'HI': ['HI'],
 
-    // US Territories
-    'PR': ['PR'],
-    'VI': ['VI'],
-    'GU': ['PR'], // Guam often grouped with PR region
-    'AS': ['PR'], // American Samoa often grouped with PR region  
-    'MP': ['PR'], // Northern Mariana Islands often grouped with PR region
-    'PW': ['L48', 'NA'],
-    'UM': ['L48', 'NA'],
-    'NAV': ['L48', 'NA'],
-    'FM': ['L48', 'NA'],
-    'MH': ['L48', 'NA'],
+  // US Territories
+  'PR': ['PR'],
+  'VI': ['VI'],
+  'GU': ['PR'], // Guam often grouped with PR region
+  'AS': ['PR'], // American Samoa often grouped with PR region  
+  'MP': ['PR'], // Northern Mariana Islands often grouped with PR region
+  'PW': ['L48', 'NA'],
+  'UM': ['L48', 'NA'],
+  'NAV': ['L48', 'NA'],
+  'FM': ['L48', 'NA'],
+  'MH': ['L48', 'NA'],
 
 
-    // Canadian Provinces/Territories (all map to CAN)
-    'AB': ['CAN'], 'BC': ['CAN'], 'MB': ['CAN'], 'NB': ['CAN'], 'NL': ['CAN'],
-    'NT': ['CAN'], 'NS': ['CAN'], 'NU': ['CAN'], 'ON': ['CAN'], 'PE': ['CAN'],
-    'QC': ['CAN'], 'SK': ['CAN'], 'YT': ['CAN'], 'NF': ['CAN'], 'LB': ['CAN'],
+  // Canadian Provinces/Territories (all map to CAN)
+  'AB': ['CAN'], 'BC': ['CAN'], 'MB': ['CAN'], 'NB': ['CAN'], 'NL': ['CAN'],
+  'NT': ['CAN'], 'NS': ['CAN'], 'NU': ['CAN'], 'ON': ['CAN'], 'PE': ['CAN'],
+  'QC': ['CAN'], 'SK': ['CAN'], 'YT': ['CAN'], 'NF': ['CAN'], 'LB': ['CAN'],
 };
 
 // Helper function to get native region for a location code
 export function getNativeRegion(locationCode: LocationCode): NativeLocationCode[] | undefined {
-    return LocationToNativeRegion[locationCode];
+  return LocationToNativeRegion[locationCode];
 }
 
 /**
@@ -194,145 +196,145 @@ NA - North America
 // Define the camelCase interface for working with the data
 // Using Readonly to ensure immutability
 export type PlantData = Readonly<{
-    acceptedSymbol: string;
-    synonymSymbol: string;
-    symbol: string;
-    scientificName: string;
-    plantsFloristicArea: string;
-    stateAndProvince: Set<LocationCode>;
-    category: Category;
-    family: string;
-    duration: Set<Duration>;
-    growthHabit: Set<GrowthHabit>;
-    nativeStateAndProvinceCodes: Set<LocationCode>;
-    combinedCountyFIPs: string[];
-    characteristicsData: boolean;
-    activeGrowthPeriod: ReadonlyArray<Season>;
-    afterHarvestRegrowthRate: Rate;
-    bloat: Level;
-    cnRatio: Level;
-    coppicePotential: boolean;
-    fallConspicuous: boolean;
-    fireResistance: boolean;
-    flowerColor: Color;
-    flowerConspicuous: boolean;
-    foliageColor: Color;
-    foliagePorosityWinter: Porosity;
-    foliagePorositySummer: Porosity;
-    foliageTexture: Texture;
-    fruitColor: Color;
-    fruitConspicuous: boolean;
-    growthForm: GrowthForm;
-    growthRate: Rate;
-    heightAtBaseAgeMaximumFeet: number;
-    heightMatureFeet: number;
-    knownAllelopath: boolean;
-    leafRetention: boolean;
-    lifespan: Lifespan;
-    lowGrowingGrass: boolean;
-    nitrogenFixation: Level;
-    resproutAbility: boolean;
-    shapeAndOrientation: ShapeAndOrientation;
-    toxicity: Toxicity;
-    adaptedToCoarseTexturedSoils: boolean;
-    adaptedToMediumTexturedSoils: boolean;
-    adaptedToFineTexturedSoils: boolean;
-    anaerobicTolerance: Level;
-    caco3Tolerance: Level;
-    coldStratificationRequired: boolean;
-    droughtTolerance: Level;
-    fertilityRequirement: Level;
-    fireTolerance: Level;
-    frostFreeDaysMinimum: number;
-    hedgeTolerance: Level;
-    moistureUse: Level;
-    phMinimum: number;
-    phMaximum: number;
-    plantingDensityPerAcreMinimum: number;
-    plantingDensityPerAcreMaximum: number;
-    precipitationMinimum: number;
-    precipitationMaximum: number;
-    rootDepthMinimumInches: number;
-    salinityTolerance: Level;
-    shadeTolerance: ShadeTolerance;
-    temperatureMinimumF: number;
-    bloomPeriod: string;
-    commercialAvailability: CommercialAvailability;
-    fruitSeedAbundance: Level;
-    fruitSeedPeriodBegin: Season;
-    fruitSeedPeriodEnd: Season;
-    fruitSeedPersistence: boolean;
-    propogatedByBareRoot: boolean;
-    propogatedByBulbs: boolean;
-    propogatedByContainer: boolean;
-    propogatedByCorms: boolean;
-    propogatedByCuttings: boolean;
-    propogatedBySeed: boolean;
-    propogatedBySod: boolean;
-    propogatedBySprigs: boolean;
-    propogatedByTubers: boolean;
-    seedsPerPound: number;
-    seedSpreadRate: Rate;
-    seedlingVigor: Level;
-    smallGrain: boolean;
-    vegetativeSpreadRate: Rate;
-    berryNutSeedProduct: boolean;
-    christmasTreeProduct: boolean;
-    fodderProduct: boolean;
-    fuelwoodProduct: Level;
-    lumberProduct: boolean;
-    navalStoreProduct: boolean;
-    nurseryStockProduct: boolean;
-    palatableBrowseAnimal: Level;
-    palatableGrazeAnimal: Level;
-    palatableHuman: boolean;
-    postProduct: boolean;
-    proteinPotential: Level;
-    pulpwoodProduct: boolean;
-    veneerProduct: boolean;
-    commonName: string;
+  acceptedSymbol: string;
+  synonymSymbol: string;
+  symbol: string;
+  scientificName: string;
+  plantsFloristicArea: string;
+  stateAndProvince: Set<LocationCode>;
+  category: Category;
+  family: string;
+  duration: Set<Duration>;
+  growthHabit: Set<GrowthHabit>;
+  nativeStateAndProvinceCodes: Set<LocationCode>;
+  combinedCountyFIPs: string[];
+  characteristicsData: boolean;
+  activeGrowthPeriod: ReadonlyArray<Season>;
+  afterHarvestRegrowthRate: Rate;
+  bloat: Level;
+  cnRatio: Level;
+  coppicePotential: boolean;
+  fallConspicuous: boolean;
+  fireResistance: boolean;
+  flowerColor: Color;
+  flowerConspicuous: boolean;
+  foliageColor: Color;
+  foliagePorosityWinter: Porosity;
+  foliagePorositySummer: Porosity;
+  foliageTexture: Texture;
+  fruitColor: Color;
+  fruitConspicuous: boolean;
+  growthForm: GrowthForm;
+  growthRate: Rate;
+  heightAtBaseAgeMaximumFeet: number;
+  heightMatureFeet: number;
+  knownAllelopath: boolean;
+  leafRetention: boolean;
+  lifespan: Lifespan;
+  lowGrowingGrass: boolean;
+  nitrogenFixation: Level;
+  resproutAbility: boolean;
+  shapeAndOrientation: ShapeAndOrientation;
+  toxicity: Toxicity;
+  adaptedToCoarseTexturedSoils: boolean;
+  adaptedToMediumTexturedSoils: boolean;
+  adaptedToFineTexturedSoils: boolean;
+  anaerobicTolerance: Level;
+  caco3Tolerance: Level;
+  coldStratificationRequired: boolean;
+  droughtTolerance: Level;
+  fertilityRequirement: Level;
+  fireTolerance: Level;
+  frostFreeDaysMinimum: number;
+  hedgeTolerance: Level;
+  moistureUse: Level;
+  phMinimum: number;
+  phMaximum: number;
+  plantingDensityPerAcreMinimum: number;
+  plantingDensityPerAcreMaximum: number;
+  precipitationMinimum: number;
+  precipitationMaximum: number;
+  rootDepthMinimumInches: number;
+  salinityTolerance: Level;
+  shadeTolerance: ShadeTolerance;
+  temperatureMinimumF: number;
+  bloomPeriod: string;
+  commercialAvailability: CommercialAvailability;
+  fruitSeedAbundance: Level;
+  fruitSeedPeriodBegin: Season;
+  fruitSeedPeriodEnd: Season;
+  fruitSeedPersistence: boolean;
+  propogatedByBareRoot: boolean;
+  propogatedByBulbs: boolean;
+  propogatedByContainer: boolean;
+  propogatedByCorms: boolean;
+  propogatedByCuttings: boolean;
+  propogatedBySeed: boolean;
+  propogatedBySod: boolean;
+  propogatedBySprigs: boolean;
+  propogatedByTubers: boolean;
+  seedsPerPound: number;
+  seedSpreadRate: Rate;
+  seedlingVigor: Level;
+  smallGrain: boolean;
+  vegetativeSpreadRate: Rate;
+  berryNutSeedProduct: boolean;
+  christmasTreeProduct: boolean;
+  fodderProduct: boolean;
+  fuelwoodProduct: Level;
+  lumberProduct: boolean;
+  navalStoreProduct: boolean;
+  nurseryStockProduct: boolean;
+  palatableBrowseAnimal: Level;
+  palatableGrazeAnimal: Level;
+  palatableHuman: boolean;
+  postProduct: boolean;
+  proteinPotential: Level;
+  pulpwoodProduct: boolean;
+  veneerProduct: boolean;
+  commonName: string;
 }>;
 
 export type County = Omit<CountyCSVItem, 'countyName' | 'stateAbbrev'>
 
 export type ExtraInfo = Readonly<{
-    combinedFIPs: string[];
-    commonName: string;
+  combinedFIPs: string[];
+  commonName: string;
 }>;
 
 export interface State {
-    name: string;
-    FIP: number | string;
+  name: string;
+  FIP: number | string;
 }
 
 export interface StateCSVItem {
-    fip: number,
-    abbrev: string,
-    name: string,
-    gnisid: string
+  fip: number,
+  abbrev: string,
+  name: string,
+  gnisid: string
 }
 
 export interface CountyCSVItem {
-    stateAbbrev: string,
-    stateFip: number,
-    countyFip: string,
-    countyName: string,
+  stateAbbrev: string,
+  stateFip: number,
+  countyFip: string,
+  countyName: string,
 }
 
 export interface StateInfo {
-    fip: number | string,
-    abbreviation: string;
-    name: string;
-    properties?: unknown;
-    country?: string;
-    gnisid?: string;
+  fip: number | string,
+  abbreviation: string;
+  name: string;
+  properties?: unknown;
+  country?: string;
+  gnisid?: string;
 }
 
 
 export type StateToCounties = Map<State, Set<County>>;
 
 export function combineCountyFIP(county: Readonly<County> | null | undefined): string {
-    return county == null || county.stateFip < 0 ? '' : county.stateFip.toString().padStart(2, '0') + county.countyFip.padStart(3, '0');
+  return county == null || county.stateFip < 0 ? '' : county.stateFip.toString().padStart(2, '0') + county.countyFip.padStart(3, '0');
 }
 
 
@@ -341,6 +343,10 @@ export interface ObservationsResponse {
   page?: number;
   per_page?: number;
   results?: Observation[];
+}
+
+export interface ProcessedObservationPhoto extends Observation {
+ imageGroups$: Observable<ProcessedPhotoGroup>[];
 }
 
 export interface Observation {
@@ -713,6 +719,14 @@ export interface TaxonPhoto {
   url?: string;
   medium_url?: string;
   square_url?: string;
+}
+
+export type TaxonMetadata = Pick<TaxonPhoto, 'id' | 'attribution' | 'license_code' | 'url'>;
+
+export type ProcessedPhotoGroup = [fullImage: Buffer<ArrayBufferLike>, thumbnail: Buffer<ArrayBufferLike>] | null;
+
+export interface ProcessedTaxonPhoto extends TaxonMetadata { 
+  images$: Observable<ProcessedPhotoGroup>;
 }
 
 export interface EstablishmentMeans {
