@@ -690,6 +690,12 @@ export interface ShowTaxon {
   preferred_establishment_means?: string;
 }
 
+export type Prefixed<T, Prefix extends string> = {
+  [K in keyof T as `${Prefix}${string & K}`]: T[K];
+};
+
+export type CsvTaxon = Pick<ShowTaxon, 'id'|'name'|'preferred_common_name'|'colors'> & Prefixed<TaxonMetadata, 'photo_'>;
+
 export interface ConservationStatus {
   place_id?: number;
   place?: CorePlace;

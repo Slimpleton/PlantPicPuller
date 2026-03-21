@@ -1,14 +1,60 @@
-import { catchError, concatMap, delay, filter, map, mergeMap, switchMap } from "rxjs/operators";
+import { catchError, concatMap, delay, filter, map, mergeMap, startWith, switchMap, tap } from "rxjs/operators";
 import { INaturalistService } from "./inaturalist.service";
-import { defer, EMPTY, forkJoin, of } from "rxjs";
+import { defer, EMPTY, forkJoin, of, Subject } from "rxjs";
 import { WhatGrowsNativeHereService } from "./whatgrowsnativehere.service";
-import { PlantData, ProcessedObservationPhoto, ProcessedPhotoGroup } from "./models";
+import { CsvTaxon, PlantData, ProcessedPhotoGroup } from "./models";
 import { fromFetch } from "rxjs/fetch";
 import { ImageService } from "./image.service";
+import fs from 'fs';
+
+function getCsvName(category: string):string{
+    return `../assets/INaturalist_${category}_${Date.now()}.csv`;
+}
 
 const iNaturalistService = new INaturalistService();
 const mySiteService = new WhatGrowsNativeHereService();
 const timeBetweenSpeciesRequestBundlesMs = 3_000;
+
+const CSV_TAXON_KEYS : (keyof CsvTaxon)[]= [
+  'id', 'name', 'preferred_common_name', 'colors',
+  'photo_id', 'photo_attribution', 'photo_license_code', 'photo_url'
+];
+
+const taxonCsvHeader: string = CSV_TAXON_KEYS.join(','); 
+const taxonCsvName: string = getCsvName('TAXON');
+const taxonCsvWriter: Subject<CsvTaxon> = new Subject<CsvTaxon>(); 
+const taxonFileStream = fs.createWriteStream(taxonCsvName);
+
+taxonCsvWriter.pipe(
+    startWith(null),
+  map((row: CsvTaxon | null) => {
+    if (row === null) return taxonCsvHeader + '\r\n';
+    
+    // TODO make the csvTaxon into the correct format
+  })
+).subscribe({
+  next: (line) => taxonFileStream.write(line),
+  error: (err) => console.error(err),
+  complete: () => taxonFileStream.close(),
+});
+
+const observationCsvHeader: string= '';// TODO generate;
+const observationCsvName = getCsvName('OBSERVATIONS');
+const observationCsvWriter: Subject<void> = new Subject<void>(); // TODO type
+const observationFileStream = fs.createWriteStream(observationCsvName);
+
+observationCsvWriter.pipe(
+    startWith(null),
+    map((row: unknown | null) => {
+        if(row === null) return observationCsvHeader + '\r\n';
+
+        // TODO make the observationCsv into the correct format
+    })
+).subscribe({
+  next: (line) => observationFileStream.write(line),
+  error: (err) => console.error(err),
+  complete: () => observationFileStream.close(),
+});
 
 // TAXA is good for one best photo, maybe do a secondary set of photos from observations for each? 
 // prob a way to do both the requests at once and combine the results
@@ -31,14 +77,22 @@ mySiteService.getPlantData().pipe(
                 }
 
                 for (const result of obsJson.results ?? []) {
+                    // TODO remove photos that dont have the correct photo license so we dont save them at this point
+                    result.photos = result.photos?.filter((x) => x.license_code == 'cc-by' || x.license_code == 'cc0');
                     result.photos?.forEach(photo => {
                         if (photo.url) photo.url = photo.url.replace('square', 'original');
                     });
+
                 }
 
                 return { plant, taxaJson, obsJson };
             }))),
-    filter(({ plant, taxaJson, obsJson }) => taxaJson?.results?.[0] != null),
+    tap(({ plant, taxaJson }) => {
+        if (!taxaJson?.results?.[0]?.default_photo?.url) {
+            console.warn(`No taxa photo for ${plant.scientificName}`);
+        }
+    }),
+    filter(({ plant, taxaJson, obsJson }) => !!taxaJson?.results?.[0]?.default_photo?.url),
     concatMap(({ plant, taxaJson, obsJson }) => {
         const taxaResult = taxaJson?.results?.[0];
 
@@ -71,13 +125,11 @@ mySiteService.getPlantData().pipe(
             map(({ taxa, obsGroups }) => ({ plant, taxa, obsGroups }))
         );
     }),
-    filter(({ plant, taxa, obsGroups }) => taxa != null),
-    switchMap(({ plant, taxa, obsGroups }) => {
-
+    concatMap(({ plant, taxa, obsGroups }) => {
         const symbol = plant.acceptedSymbol;
 
+        return EMPTY;
         // TODO use the plant info and each of the generated images /metadata to create a url for each and premade csv rows to insert/create
-        return of();
     }),
     // TODO how to store the name of each file and how it maps to each species. 
     // prob need a csv map or json? maybe a csv column thats delimited diff 
