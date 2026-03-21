@@ -12,7 +12,7 @@ const mySiteService = new WhatGrowsNativeHereService();
 const timeBetweenSpeciesRequestBundlesMs = 3_000;
 
 const CSV_TAXON_KEYS: (keyof CsvTaxon)[] = [
-    'id', 'name', 'preferred_common_name', 'colors',
+    'acceptedSymbol', 'id', 'name', 'preferred_common_name', 'colors',
     'photo_id', 'photo_attribution', 'photo_license_code', 'photo_url'
 ];
 const taxonCsvHeader: string = CSV_TAXON_KEYS.join(',');
@@ -24,7 +24,7 @@ taxonCsvWriter.pipe(
     startWith(null),
     map((row: CsvTaxon | null) => {
         if (row === null) return taxonCsvHeader + '\r\n';
-        return `${row.id},${row.name},${row.preferred_common_name},${row.colors?.join('|')},${row.photo_id},${row.photo_attribution},${row.photo_license_code},${row.photo_url}\r\n`
+        return `${row.acceptedSymbol},${row.id},${row.name},${row.preferred_common_name},${row.colors?.join('|')},${row.photo_id},${row.photo_attribution},${row.photo_license_code},${row.photo_url}\r\n`
     })
 ).subscribe({
     next: (line) => taxonFileStream.write(line),
@@ -34,7 +34,7 @@ taxonCsvWriter.pipe(
 
 
 // TODO 
-const CSV_OBSERVATION_KEYS: (keyof CsvObservation)[] = ['id'];
+const CSV_OBSERVATION_KEYS: (keyof CsvObservation)[] = ['acceptedSymbol','id'];
 const observationCsvHeader: string = CSV_OBSERVATION_KEYS.join(',');
 const observationCsvName = getCsvName('OBSERVATIONS');
 const observationCsvWriter: Subject<CsvObservation> = new Subject<CsvObservation>(); // TODO type
@@ -55,7 +55,7 @@ observationCsvWriter.pipe(
 });
 
 // TODO
-const CSV_OBSERVATION_PHOTO_KEYS: (keyof CsvObservationPhoto)[] = ['id'];
+const CSV_OBSERVATION_PHOTO_KEYS: (keyof CsvObservationPhoto)[] = ['acceptedSymbol','id'];
 const observationPhotoCsvHeader: string = CSV_OBSERVATION_PHOTO_KEYS.join(',');
 const observationPhotoCsvName = getCsvName('OBSERVATION_PHOTOS');
 const observationPhotoCsvWriter : Subject<CsvObservationPhoto> = new Subject<CsvObservationPhoto>();
@@ -94,7 +94,7 @@ mySiteService.getPlantData().pipe(
                 }
 
                 for (const result of obsJson.results ?? []) {
-                    // TODO remove photos that dont have the correct photo license so we dont save them at this point
+                    // remove photos that dont have the correct photo license so we dont save them at this point
                     result.photos = result.photos?.filter((x) => x.license_code == 'cc-by' || x.license_code == 'cc0');
                     result.photos?.forEach(photo => {
                         if (photo.url) photo.url = photo.url.replace('square', 'original');

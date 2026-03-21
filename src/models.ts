@@ -350,8 +350,8 @@ export interface ProcessedObservationPhoto extends Observation {
 }
 
 // TODO these types
-export type CsvObservation = Pick<Observation, 'id'>; 
-export type CsvObservationPhoto = Pick<Photo, 'id'>;
+export type CsvObservation = { acceptedSymbol: string } &  Pick<Observation, 'id'>; 
+export type CsvObservationPhoto = { acceptedSymbol: string } & Pick<Photo, 'id'>;
 
 export interface Observation {
   annotations?: Annotation[];
@@ -698,7 +698,7 @@ export type Prefixed<T, Prefix extends string> = {
   [K in keyof T as `${Prefix}${string & K}`]: T[K];
 };
 
-export type CsvTaxon = Pick<ShowTaxon, 'id'|'name'|'preferred_common_name'|'colors'> & Prefixed<TaxonMetadata, 'photo_'>;
+export type CsvTaxon = { acceptedSymbol: string }  & Pick<ShowTaxon, 'id'|'name'|'preferred_common_name'|'colors'> & Prefixed<TaxonMetadata, 'photo_'>;
 
 export interface ConservationStatus {
   place_id?: number;
