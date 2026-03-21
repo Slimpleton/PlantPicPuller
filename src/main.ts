@@ -2,60 +2,77 @@ import { catchError, concatMap, delay, filter, map, mergeMap, startWith, switchM
 import { INaturalistService } from "./inaturalist.service";
 import { defer, EMPTY, forkJoin, of, Subject } from "rxjs";
 import { WhatGrowsNativeHereService } from "./whatgrowsnativehere.service";
-import { CsvTaxon, PlantData, ProcessedPhotoGroup } from "./models";
+import { CsvObservation, CsvObservationPhoto, CsvTaxon, PlantData, ProcessedPhotoGroup } from "./models";
 import { fromFetch } from "rxjs/fetch";
 import { ImageService } from "./image.service";
 import fs from 'fs';
-
-function getCsvName(category: string):string{
-    return `../assets/INaturalist_${category}_${Date.now()}.csv`;
-}
 
 const iNaturalistService = new INaturalistService();
 const mySiteService = new WhatGrowsNativeHereService();
 const timeBetweenSpeciesRequestBundlesMs = 3_000;
 
-const CSV_TAXON_KEYS : (keyof CsvTaxon)[]= [
-  'id', 'name', 'preferred_common_name', 'colors',
-  'photo_id', 'photo_attribution', 'photo_license_code', 'photo_url'
+const CSV_TAXON_KEYS: (keyof CsvTaxon)[] = [
+    'id', 'name', 'preferred_common_name', 'colors',
+    'photo_id', 'photo_attribution', 'photo_license_code', 'photo_url'
 ];
-
-const taxonCsvHeader: string = CSV_TAXON_KEYS.join(','); 
+const taxonCsvHeader: string = CSV_TAXON_KEYS.join(',');
 const taxonCsvName: string = getCsvName('TAXON');
-const taxonCsvWriter: Subject<CsvTaxon> = new Subject<CsvTaxon>(); 
+const taxonCsvWriter: Subject<CsvTaxon> = new Subject<CsvTaxon>();
 const taxonFileStream = fs.createWriteStream(taxonCsvName);
 
 taxonCsvWriter.pipe(
     startWith(null),
-  map((row: CsvTaxon | null) => {
-    if (row === null) return taxonCsvHeader + '\r\n';
-    
-    // TODO make the csvTaxon into the correct format
-  })
+    map((row: CsvTaxon | null) => {
+        if (row === null) return taxonCsvHeader + '\r\n';
+        return `${row.id},${row.name},${row.preferred_common_name},${row.colors?.join('|')},${row.photo_id},${row.photo_attribution},${row.photo_license_code},${row.photo_url}\r\n`
+    })
 ).subscribe({
-  next: (line) => taxonFileStream.write(line),
-  error: (err) => console.error(err),
-  complete: () => taxonFileStream.close(),
+    next: (line) => taxonFileStream.write(line),
+    error: (err) => console.error(err),
+    complete: () => taxonFileStream.close(),
 });
 
-const observationCsvHeader: string= '';// TODO generate;
+
+// TODO 
+const CSV_OBSERVATION_KEYS: (keyof CsvObservation)[] = ['id'];
+const observationCsvHeader: string = CSV_OBSERVATION_KEYS.join(',');
 const observationCsvName = getCsvName('OBSERVATIONS');
-const observationCsvWriter: Subject<void> = new Subject<void>(); // TODO type
+const observationCsvWriter: Subject<CsvObservation> = new Subject<CsvObservation>(); // TODO type
 const observationFileStream = fs.createWriteStream(observationCsvName);
 
 observationCsvWriter.pipe(
     startWith(null),
-    map((row: unknown | null) => {
-        if(row === null) return observationCsvHeader + '\r\n';
+    map((row: CsvObservation | null) => {
+        if (row === null) return observationCsvHeader + '\r\n';
+
 
         // TODO make the observationCsv into the correct format
     })
 ).subscribe({
-  next: (line) => observationFileStream.write(line),
-  error: (err) => console.error(err),
-  complete: () => observationFileStream.close(),
+    next: (line) => observationFileStream.write(line),
+    error: (err) => console.error(err),
+    complete: () => observationFileStream.close(),
 });
 
+// TODO
+const CSV_OBSERVATION_PHOTO_KEYS: (keyof CsvObservationPhoto)[] = ['id'];
+const observationPhotoCsvHeader: string = CSV_OBSERVATION_PHOTO_KEYS.join(',');
+const observationPhotoCsvName = getCsvName('OBSERVATION_PHOTOS');
+const observationPhotoCsvWriter : Subject<CsvObservationPhoto> = new Subject<CsvObservationPhoto>();
+const observationPhotoFileStream = fs.createWriteStream(observationPhotoCsvName);
+
+observationPhotoCsvWriter.pipe(
+    startWith(null),
+    map((row: unknown | null) => {
+        if (row == null) return observationPhotoCsvHeader + '\r\n';
+
+        // TODO actual row
+    })
+).subscribe({
+    next: (line) => observationPhotoFileStream.write(line),
+    error: (err) => console.error(err),
+    complete: () => observationPhotoFileStream.close(),
+});
 // TAXA is good for one best photo, maybe do a secondary set of photos from observations for each? 
 // prob a way to do both the requests at once and combine the results
 
@@ -142,6 +159,9 @@ mySiteService.getPlantData().pipe(
 });
 
 
+function getCsvName(category: string): string {
+    return `../assets/INaturalist_${category}_${Date.now()}.csv`;
+}
 
 
 // TODO make sure to credit those with cc-by and even cc-0 cuz i luv yall save dat metadata

@@ -349,6 +349,10 @@ export interface ProcessedObservationPhoto extends Observation {
  imageGroups$: Observable<ProcessedPhotoGroup>[];
 }
 
+// TODO these types
+export type CsvObservation = Pick<Observation, 'id'>; 
+export type CsvObservationPhoto = Pick<Photo, 'id'>;
+
 export interface Observation {
   annotations?: Annotation[];
   id?: number;
