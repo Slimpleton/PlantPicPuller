@@ -350,8 +350,13 @@ export interface ProcessedObservationPhoto extends Observation {
 }
 
 // TODO these types
-export type CsvObservation = { acceptedSymbol: string } &  Pick<Observation, 'id'>; 
-export type CsvObservationPhoto = { acceptedSymbol: string } & Pick<Photo, 'id'>;
+export type CsvObservation = 
+  { acceptedSymbol: string } & 
+  Pick<Observation, 'id' | 'uuid' | 'quality_grade' | 'observed_on' | 'license_code'>;
+
+export type CsvObservationPhoto = 
+  { acceptedSymbol: string; observation_id: number } & 
+  Pick<Photo, 'id' | 'url' | 'attribution' | 'license_code'>;
 
 export interface Observation {
   annotations?: Annotation[];
