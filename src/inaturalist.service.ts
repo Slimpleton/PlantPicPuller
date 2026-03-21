@@ -1,5 +1,5 @@
 import { fromFetch } from 'rxjs/fetch';
-import { catchError, map, Observable, of, switchMap } from 'rxjs';
+import { catchError, map, Observable, of, switchMap, throwError } from 'rxjs';
 import { Observation, ObservationsResponse, TaxaShowResponse } from './models';
 
 export class INaturalistService {
@@ -11,6 +11,8 @@ export class INaturalistService {
 
         return this.getTaxon(scientificName).pipe(
             switchMap((id: number) => {
+                // TODO handle not finding taxon for subspecies
+
                 const params = new URLSearchParams({
                     'quality_grade': 'research',
                     'photos': true.toString(),
@@ -29,7 +31,7 @@ export class INaturalistService {
                 return fromFetch<ObservationsResponse>(url.toString(), {
                     selector: (response) => {
                         if (!response.ok) {
-                            throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
+                            throw new Error(`HTTP error: ${response.status} ${response.statusText} ${url}`);
                         }
                         return response.json() as Promise<ObservationsResponse>;
                     },
@@ -42,6 +44,7 @@ export class INaturalistService {
 
         return this.getTaxon(scientificName).pipe(
             switchMap((id: number) => {
+                // TODO handle not finding taxon for subspecies
                 if (Number.isNaN(id))
                     return of(null);
 
@@ -60,7 +63,7 @@ export class INaturalistService {
                     {
                         selector: (response) => {
                             if (!response.ok) {
-                                throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
+                                throw new Error(`HTTP error: ${response.status} ${response.statusText} ${url}`);
                             }
                             return response.json() as Promise<TaxaShowResponse>;
                         }
@@ -71,16 +74,25 @@ export class INaturalistService {
 
     // TODO subspecies struggle with the regular taxa endpoint, swap to observations for those instead somehow?? detect subspecies difference in strings 
     private getTaxon(scientificName: string): Observable<number> {
+        const isSubspecies = scientificName.trim().split(/\s+/).length >= 3;
+        // todo maybe just fall back to parent for subspecies??? idk man its tough out here
+
         const taxaParams = new URLSearchParams({
             'q': scientificName,
-            'rank': 'species',
+            'rank': isSubspecies ? 'subspecies' : 'species',
             'is_active': 'true',
             'per_page': '1'
         });
+        
         return fromFetch(`${INaturalistService._BASE_URL}taxa?${taxaParams}`).pipe(
             switchMap((res: any) => res.json()),
             // if theres a subspecies, this results[0] is gonna be undefined / null
-            map((json: any) => json.results[0].id),
-            catchError((err) => { console.error('scientificName: ' + scientificName, err); return of(NaN); }));
+            map((json: any) => {
+                const id = json.results[0]?.id;
+                if (id == null) throw new Error('Invalid number');
+                return id as number;
+            }),
+     
+            catchError((err) => { console.error('scientificName: ' + scientificName, err); return of(Number.NaN); }));
     }
 }
