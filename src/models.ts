@@ -726,7 +726,7 @@ export type TaxonMetadata = Pick<TaxonPhoto, 'id' | 'attribution' | 'license_cod
 export type ProcessedPhotoGroup = [fullImage: Buffer<ArrayBufferLike>, thumbnail: Buffer<ArrayBufferLike>] | null;
 
 export interface ProcessedTaxonPhoto extends TaxonMetadata { 
-  images$: Observable<ProcessedPhotoGroup>;
+  images: ProcessedPhotoGroup;
 }
 
 export interface EstablishmentMeans {

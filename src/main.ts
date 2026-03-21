@@ -1,14 +1,14 @@
-import { catchError, concatMap, delay, map, mergeMap, switchMap } from "rxjs/operators";
+import { catchError, concatMap, delay, filter, map, mergeMap, switchMap } from "rxjs/operators";
 import { INaturalistService } from "./inaturalist.service";
-import { defer, forkJoin, of } from "rxjs";
+import { defer, EMPTY, forkJoin, of } from "rxjs";
 import { WhatGrowsNativeHereService } from "./whatgrowsnativehere.service";
-import { PlantData, ProcessedObservationPhoto } from "./models";
+import { PlantData, ProcessedObservationPhoto, ProcessedPhotoGroup } from "./models";
 import { fromFetch } from "rxjs/fetch";
 import { ImageService } from "./image.service";
 
 const iNaturalistService = new INaturalistService();
 const mySiteService = new WhatGrowsNativeHereService();
-const timeBetweenSpeciesRequestBundlesMs = 2_000;
+const timeBetweenSpeciesRequestBundlesMs = 3_000;
 
 // TAXA is good for one best photo, maybe do a secondary set of photos from observations for each? 
 // prob a way to do both the requests at once and combine the results
@@ -37,39 +37,45 @@ mySiteService.getPlantData().pipe(
                 }
 
                 return { plant, taxaJson, obsJson };
-            }),
-        )
-    ),
-    map(({ plant, taxaJson, obsJson }) => {
-        // Taxa image (optional)
-        const taxaImage$ = taxaJson?.results?.[0]?.default_photo?.url
-            ? fromFetch<ArrayBuffer>(taxaJson.results[0].default_photo.url, {
+            }))),
+    filter(({ plant, taxaJson, obsJson }) => taxaJson?.results?.[0] != null),
+    concatMap(({ plant, taxaJson, obsJson }) => {
+        const taxaResult = taxaJson?.results?.[0];
+
+        const resolvedTaxa$ = taxaResult?.default_photo?.url
+            ? fromFetch<ArrayBuffer>(taxaResult.default_photo.url, {
                 selector: ImageService.getArrayBuffer,
-            }).pipe(ImageService.CreateImageAndThumbnail())
+            }).pipe(
+                ImageService.CreateImageAndThumbnail(),
+                map(images => ImageService.toProcessedTaxonPhoto(images, taxaResult)),
+            )
             : of(null);
 
-        // One forkJoin per observation (all photos in that obs in parallel)
-        // TODO rethink this, it makes pairing the license metadata to each individual image difficult
-        const processedObsPhotos: ProcessedObservationPhoto[] = obsJson.results!.map(obs =>
-            ImageService.toProcessedObservationPhoto(
-                (obs.photos ?? []).map(photo =>
-                    fromFetch<ArrayBuffer>(photo.url!, { selector: ImageService.getArrayBuffer })
-                        .pipe(ImageService.CreateImageAndThumbnail())
-                ),
-                obs,
+        const resolvedObs$ = obsJson.results!.length > 0
+            ? forkJoin(
+                obsJson.results!.map(obs => {
+                    const photoStreams = (obs.photos ?? []).map(photo =>
+                        fromFetch<ArrayBuffer>(photo.url!, { selector: ImageService.getArrayBuffer })
+                            .pipe(ImageService.CreateImageAndThumbnail())
+                    );
+                    return photoStreams.length > 0
+                        ? forkJoin(photoStreams).pipe(
+                            map(imageGroups => ({ ...obs, imageGroups }))
+                        )
+                        : of({ ...obs, imageGroups: [] as ProcessedPhotoGroup[] });
+                })
             )
-        );
-        return {
-            plant: plant,
-            taxaImages: ImageService.toProcessedTaxonPhoto(taxaImage$, taxaJson?.results?.[0] ?? null),
-            obsImageGroups: processedObsPhotos,
-        };
-    }),
-    switchMap(({ plant, taxaImages, obsImageGroups: obsImageGroups$ }) => {
-        const symbol = plant.acceptedSymbol;
-        if (!taxaImages) {
+            : of([]);
 
-        }
+        return forkJoin({ taxa: resolvedTaxa$, obsGroups: resolvedObs$ }).pipe(
+            map(({ taxa, obsGroups }) => ({ plant, taxa, obsGroups }))
+        );
+    }),
+    filter(({ plant, taxa, obsGroups }) => taxa != null),
+    switchMap(({ plant, taxa, obsGroups }) => {
+
+        const symbol = plant.acceptedSymbol;
+
         // TODO use the plant info and each of the generated images /metadata to create a url for each and premade csv rows to insert/create
         return of();
     }),
@@ -77,7 +83,7 @@ mySiteService.getPlantData().pipe(
     // prob need a csv map or json? maybe a csv column thats delimited diff 
     // store metadata in csv
     // TODO upload to tigris with naming schema set / metadata somehow 
-    catchError((err) => { console.error(err); return of(); })
+    catchError((err) => { console.error(err); return EMPTY; })
 ).subscribe({
     next: () => console.log('got to the end'),
     error: (err) => console.error(err),

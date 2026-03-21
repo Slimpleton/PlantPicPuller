@@ -1,5 +1,5 @@
 import { fromFetch } from 'rxjs/fetch';
-import { catchError, EMPTY, map, Observable, of, switchMap } from 'rxjs';
+import { catchError, EMPTY, Observable, of, switchMap } from 'rxjs';
 import { ObservationsResponse, TaxaShowResponse } from './models';
 
 export class INaturalistService {
@@ -94,7 +94,7 @@ export class INaturalistService {
 
                 if (result == null) {
                     console.warn(`No taxon found for "${name}", skipping`);
-                    return of(Number.NaN);
+                    return EMPTY;
                 }
 
                 // Sanity check: make sure the match isn't suspiciously unrelated
@@ -102,14 +102,14 @@ export class INaturalistService {
                 const firstWord = name.split(' ')[0].toLowerCase();
                 if (!matchedName.includes(firstWord)) {
                     console.warn(`Suspicious match: queried "${name}", got "${matchedName}", skipping`);
-                    return of(Number.NaN);
+                    return EMPTY;
                 }
 
                 return of(result.id as number);
             }),
             catchError((err) => {
                 console.error('name: ' + name, err);
-                return of(Number.NaN);
+                return EMPTY;
             })
         );
     }

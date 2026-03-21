@@ -24,13 +24,13 @@ export class ImageService {
     }
 
     public static toProcessedTaxonPhoto(
-        images$: Observable<ProcessedPhotoGroup | null>,
+        images: ProcessedPhotoGroup | null,
         taxonPhoto: TaxonPhoto | null
     ): ProcessedTaxonPhoto | null {
         if (!taxonPhoto)
             return null;
         const { id, attribution, license_code, url } = taxonPhoto;
-        return { images$, id, attribution, license_code, url };
+        return { images: images, id, attribution, license_code, url };
     }
 
     public static toProcessedObservationPhoto(
