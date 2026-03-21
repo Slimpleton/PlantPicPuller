@@ -1,98 +1,116 @@
 import { fromFetch } from 'rxjs/fetch';
-import { catchError, map, Observable, of, switchMap, throwError } from 'rxjs';
-import { Observation, ObservationsResponse, TaxaShowResponse } from './models';
+import { catchError, EMPTY, map, Observable, of, switchMap } from 'rxjs';
+import { ObservationsResponse, TaxaShowResponse } from './models';
 
 export class INaturalistService {
     private static readonly _BASE_URL: string = 'https://api.inaturalist.org/v1/'
     public constructor() { }
 
-    public getObservation(scientificName: string): Observable<ObservationsResponse> {
+    public getObservation(id: number): Observable<ObservationsResponse> {
+
+        if (Number.isNaN(id)) return EMPTY;
+
         const perPageAmount: number = 15;
+        const params = new URLSearchParams({
+            'quality_grade': 'research',
+            'photos': true.toString(),
+            'native': true.toString(),
+            'captive': false.toString(),
+            'geo': true.toString(),
+            'license': 'cc0,cc-by',
+            'photo_license': 'cc0,cc-by',
+            'taxon_id': String(id),
+            'per_page': String(perPageAmount),
+            'order_by': 'votes',
+            'order': 'desc',
+        });
 
-        return this.getTaxon(scientificName).pipe(
-            switchMap((id: number) => {
-                // TODO handle not finding taxon for subspecies
+        const url: URL = new URL(`${INaturalistService._BASE_URL}observations?${params}`);
+        return fromFetch<ObservationsResponse>(url.toString(), {
+            selector: (response) => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status} ${response.statusText} ${url}`);
+                }
+                return response.json() as Promise<ObservationsResponse>;
+            },
+        });
 
-                const params = new URLSearchParams({
-                    'quality_grade': 'research',
-                    'photos': true.toString(),
-                    'native': true.toString(),
-                    'captive': false.toString(),
-                    'geo': true.toString(),
-                    'license': 'cc0,cc-by',
-                    'photo_license': 'cc0,cc-by',
-                    'taxon_id': String(id),
-                    'per_page': String(perPageAmount),
-                    'order_by': 'votes',
-                    'order': 'desc',
-                });
-
-                const url: URL = new URL(`${INaturalistService._BASE_URL}observations?${params}`);
-                return fromFetch<ObservationsResponse>(url.toString(), {
-                    selector: (response) => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error: ${response.status} ${response.statusText} ${url}`);
-                        }
-                        return response.json() as Promise<ObservationsResponse>;
-                    },
-                });
-            }));
     }
 
-    public getTaxa(scientificName: string): Observable<TaxaShowResponse | null> {
+    public getTaxa(id: number): Observable<TaxaShowResponse | null> {
         const perPageAmount: number = 1;
+        // TODO handle not finding taxon for subspecies
+        if (Number.isNaN(id))
+            return EMPTY;
 
-        return this.getTaxon(scientificName).pipe(
-            switchMap((id: number) => {
-                // TODO handle not finding taxon for subspecies
-                if (Number.isNaN(id))
-                    return of(null);
+        const params = new URLSearchParams({
+            'quality_grade': 'research',
+            'license': 'cc0,cc-by',
+            'photo_license': 'cc0,cc-by',
+            'taxon_id': String(id),
+            'per_page': String(perPageAmount),
+            'order_by': 'votes',
+            'order': 'desc',
+        });
 
-                const params = new URLSearchParams({
-                    'quality_grade': 'research',
-                    'license': 'cc0,cc-by',
-                    'photo_license': 'cc0,cc-by',
-                    'taxon_id': String(id),
-                    'per_page': String(perPageAmount),
-                    'order_by': 'votes',
-                    'order': 'desc',
-                });
-
-                const url: URL = new URL(`${INaturalistService._BASE_URL}taxa?${params}`);
-                return fromFetch<TaxaShowResponse>(url.toString(),
-                    {
-                        selector: (response) => {
-                            if (!response.ok) {
-                                throw new Error(`HTTP error: ${response.status} ${response.statusText} ${url}`);
-                            }
-                            return response.json() as Promise<TaxaShowResponse>;
-                        }
-                    });
-            })
-        );
+        const url: URL = new URL(`${INaturalistService._BASE_URL}taxa?${params}`);
+        return fromFetch<TaxaShowResponse>(url.toString(),
+            {
+                selector: (response) => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status} ${response.statusText} ${url}`);
+                    }
+                    return response.json() as Promise<TaxaShowResponse>;
+                }
+            });
     }
 
-    // TODO subspecies struggle with the regular taxa endpoint, swap to observations for those instead somehow?? detect subspecies difference in strings 
-    private getTaxon(scientificName: string): Observable<number> {
-        const isSubspecies = scientificName.trim().split(/\s+/).length >= 3;
-        // todo maybe just fall back to parent for subspecies??? idk man its tough out here
+    public getTaxonForId(scientificName: string): Observable<number> {
+        const cleanedName = scientificName
+            .replace(/\b(var|subsp|ssp|f|cv)\.\s*/gi, '')
+            .trim();
+
+        return this.getTaxonByName(cleanedName);
+    }
+
+    private getTaxonByName(name: string): Observable<number> {
+        const words = name.trim().split(/\s+/);
+
+        // Nothing left to try
+        if (words.length === 0) {
+            return of(Number.NaN);
+        }
 
         const taxaParams = new URLSearchParams({
-            'q': scientificName,
-            'rank': isSubspecies ? 'subspecies' : 'species',
+            'q': name,
             'is_active': 'true',
             'per_page': '1'
         });
-        
-        return fromFetch(`${INaturalistService._BASE_URL}taxa?${taxaParams}`).pipe(
+
+        return fromFetch(`${INaturalistService._BASE_URL}taxa/autocomplete?${taxaParams}`).pipe(
             switchMap((res: any) => res.json()),
-            // if theres a subspecies, this results[0] is gonna be undefined / null
-            map((json: any) => {
-                const id = json.results[0]?.id;
-                if (id == null) throw new Error('Invalid number');
-                return id as number;
+            switchMap((json: any) => {
+                const result = json.results?.[0] ?? null;
+
+                if (result == null) {
+                    console.warn(`No taxon found for "${name}", skipping`);
+                    return of(Number.NaN);
+                }
+
+                // Sanity check: make sure the match isn't suspiciously unrelated
+                const matchedName: string = (result.matched_term ?? result.name ?? '').toLowerCase();
+                const firstWord = name.split(' ')[0].toLowerCase();
+                if (!matchedName.includes(firstWord)) {
+                    console.warn(`Suspicious match: queried "${name}", got "${matchedName}", skipping`);
+                    return of(Number.NaN);
+                }
+
+                return of(result.id as number);
             }),
-     
-            catchError((err) => { console.error('scientificName: ' + scientificName, err); return of(Number.NaN); }));
+            catchError((err) => {
+                console.error('name: ' + name, err);
+                return of(Number.NaN);
+            })
+        );
     }
 }

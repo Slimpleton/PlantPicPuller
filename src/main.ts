@@ -18,10 +18,11 @@ mySiteService.getPlantData().pipe(
     concatMap((plant: PlantData) =>
         of(plant.scientificName).pipe(
             delay(timeBetweenSpeciesRequestBundlesMs),
+            switchMap((name) => iNaturalistService.getTaxonForId(name)),
             // launch the taxa and the observations side by side
-            mergeMap((name) => forkJoin([
-                defer(() => iNaturalistService.getTaxa(name)),
-                defer(() => iNaturalistService.getObservation(name)),
+            mergeMap((id) => forkJoin([
+                defer(() => iNaturalistService.getTaxa(id)),
+                defer(() => iNaturalistService.getObservation(id)),
             ])),
             map(([taxaJson, obsJson]) => {
                 const taxaResult = taxaJson?.results?.[0];
@@ -79,7 +80,7 @@ mySiteService.getPlantData().pipe(
     catchError((err) => { console.error(err); return of(); })
 ).subscribe({
     next: () => console.log('got to the end'),
-    error: (err) =>console.error(err),
+    error: (err) => console.error(err),
 });
 
 
