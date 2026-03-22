@@ -22,57 +22,53 @@ const taxonFileStream = fs.createWriteStream(taxonCsvName);
 
 taxonCsvWriter.pipe(
     startWith(null),
-    map((row: CsvTaxon | null) => {
-        if (row === null) return taxonCsvHeader + '\r\n';
-        return `${row.acceptedSymbol},${row.id},${row.name},${row.preferred_common_name},${row.colors?.join('|')},${row.photo_id},${row.photo_attribution},${row.photo_license_code},${row.photo_url}\r\n`
-    })
-).subscribe({
-    next: (line) => taxonFileStream.write(line),
-    error: (err) => console.error(err),
-    complete: () => taxonFileStream.close(),
-});
+    map((row: CsvTaxon | null) =>
+        row === null ?
+            taxonCsvHeader + '\r\n'
+            : `${row.acceptedSymbol},${row.id},${row.name},${row.preferred_common_name},${row.colors?.join('|')},${row.photo_id},${row.photo_attribution},${row.photo_license_code},${row.photo_url}\r\n`
+    )).subscribe({
+        next: (line) => taxonFileStream.write(line),
+        error: (err) => console.error(err),
+        complete: () => taxonFileStream.close(),
+    });
 
 
-// TODO 
-const CSV_OBSERVATION_KEYS: (keyof CsvObservation)[] = ['acceptedSymbol','id'];
+const CSV_OBSERVATION_KEYS: (keyof CsvObservation)[] = ['acceptedSymbol', 'id', 'uuid', 'observed_on', 'license_code', 'location',
+    'user_name', 'user_id', 'user_icon_url'];
 const observationCsvHeader: string = CSV_OBSERVATION_KEYS.join(',');
 const observationCsvName = getCsvName('OBSERVATIONS');
-const observationCsvWriter: Subject<CsvObservation> = new Subject<CsvObservation>(); // TODO type
+const observationCsvWriter: Subject<CsvObservation> = new Subject<CsvObservation>();
 const observationFileStream = fs.createWriteStream(observationCsvName);
 
 observationCsvWriter.pipe(
     startWith(null),
-    map((row: CsvObservation | null) => {
-        if (row === null) return observationCsvHeader + '\r\n';
+    map((row: CsvObservation | null) =>
+        row === null ? observationCsvHeader + '\r\n' :
+            `${row.acceptedSymbol},${row.id},${row.uuid},${row.observed_on},${row.license_code},${row.location},${row.user_name},${row.user_id},${row.user_icon_url}`
+    )).subscribe({
+        next: (line) => observationFileStream.write(line),
+        error: (err) => console.error(err),
+        complete: () => observationFileStream.close(),
+    });
 
-
-        // TODO make the observationCsv into the correct format
-    })
-).subscribe({
-    next: (line) => observationFileStream.write(line),
-    error: (err) => console.error(err),
-    complete: () => observationFileStream.close(),
-});
-
-// TODO
-const CSV_OBSERVATION_PHOTO_KEYS: (keyof CsvObservationPhoto)[] = ['acceptedSymbol','id'];
+const CSV_OBSERVATION_PHOTO_KEYS: (keyof CsvObservationPhoto)[] = ['acceptedSymbol', 'observation_id',
+    'id', 'url', 'attribution', 'license_code'];
 const observationPhotoCsvHeader: string = CSV_OBSERVATION_PHOTO_KEYS.join(',');
 const observationPhotoCsvName = getCsvName('OBSERVATION_PHOTOS');
-const observationPhotoCsvWriter : Subject<CsvObservationPhoto> = new Subject<CsvObservationPhoto>();
+const observationPhotoCsvWriter: Subject<CsvObservationPhoto> = new Subject<CsvObservationPhoto>();
 const observationPhotoFileStream = fs.createWriteStream(observationPhotoCsvName);
 
 observationPhotoCsvWriter.pipe(
     startWith(null),
-    map((row: unknown | null) => {
-        if (row == null) return observationPhotoCsvHeader + '\r\n';
+    map((row: CsvObservationPhoto | null) =>
+        row == null ? observationPhotoCsvHeader + '\r\n'
+            : `${row.acceptedSymbol},${row.observation_id},${row.id},${row.url},${row.attribution},${row.license_code}\r\n`
+    )).subscribe({
+        next: (line) => observationPhotoFileStream.write(line),
+        error: (err) => console.error(err),
+        complete: () => observationPhotoFileStream.close(),
+    });
 
-        // TODO actual row
-    })
-).subscribe({
-    next: (line) => observationPhotoFileStream.write(line),
-    error: (err) => console.error(err),
-    complete: () => observationPhotoFileStream.close(),
-});
 // TAXA is good for one best photo, maybe do a secondary set of photos from observations for each? 
 // prob a way to do both the requests at once and combine the results
 
@@ -156,6 +152,11 @@ mySiteService.getPlantData().pipe(
 ).subscribe({
     next: () => console.log('got to the end'),
     error: (err) => console.error(err),
+    complete: () => {
+        taxonCsvWriter.complete();
+        observationCsvWriter.complete();
+        observationPhotoCsvWriter.complete();
+    }
 });
 
 

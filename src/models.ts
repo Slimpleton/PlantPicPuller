@@ -349,10 +349,10 @@ export interface ProcessedObservationPhoto extends Observation {
  imageGroups$: Observable<ProcessedPhotoGroup>[];
 }
 
-// TODO these types
 export type CsvObservation = 
   { acceptedSymbol: string } & 
-  Pick<Observation, 'id' | 'uuid' | 'quality_grade' | 'observed_on' | 'license_code'>;
+  Pick<Observation, 'id' | 'uuid' | 'observed_on' | 'license_code'| 'location'> 
+   & Prefixed<Pick<User, 'name' | 'id' | 'icon_url'>, 'user_'>;
 
 export type CsvObservationPhoto = 
   { acceptedSymbol: string; observation_id: number } & 
