@@ -204,23 +204,24 @@ mySiteService.getPlantData().pipe(
                 });
             });
         }
-        return of(null);
+        return of(plant);
     }),
     // store metadata in csv
     catchError((err) => { console.error(err); return EMPTY; })
 ).subscribe({
-    next: () => console.log('got to the end'),
+    next: (plant) => console.log(`got to the end for ${plant.acceptedSymbol} aka ${plant.scientificName}/${plant.commonName}`),
     error: (err) => console.error(err),
     complete: () => {
+        console.log('fin');
         taxonCsvWriter.complete();
         observationCsvWriter.complete();
         observationPhotoCsvWriter.complete();
-    }
+    }   
 });
 
 
 function getCsvName(category: string): string {
-    return `../assets/INaturalist_${category}_${Date.now()}.csv`;
+    return `./assets/INaturalist_${category}_${Date.now()}.csv`;
 }
 
 function getTigrisTaxonPhotoUrls(symbol: string, metaData: ProcessedTaxonPhotoAndMetadata): [string, string] {
