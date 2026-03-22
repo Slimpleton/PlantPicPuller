@@ -7,6 +7,7 @@ import { fromFetch } from "rxjs/fetch";
 import { ImageService } from "./image.service";
 import fs from 'fs';
 import { upload } from "@tigrisdata/storage/client";
+import { put } from "@tigrisdata/storage";
 
 const iNaturalistService = new INaturalistService();
 const mySiteService = new WhatGrowsNativeHereService();
@@ -100,14 +101,19 @@ mySiteService.getPlantData().pipe(
                 }
 
                 return { plant, taxaJson, obsJson };
+            }),
+            catchError((err) => {
+                console.error(`Failed for ${plant.scientificName}:`, err);
+                return EMPTY;
             }))),
-    tap(({ plant, taxaJson }) => {
-        if (!taxaJson?.results?.[0]?.default_photo?.url) {
+    filter(({ plant, taxaJson, obsJson }) => {
+        const photoFound = !!taxaJson?.results?.[0]?.default_photo?.url;
+        if (!photoFound)
             console.warn(`No taxa photo for ${plant.scientificName}`);
-        }
+        return photoFound;
     }),
-    filter(({ plant, taxaJson, obsJson }) => !!taxaJson?.results?.[0]?.default_photo?.url),
     concatMap(({ plant, taxaJson, obsJson }) => {
+        const symbol = plant.acceptedSymbol;
         const taxaResult = taxaJson?.results?.[0];
 
         const resolvedTaxa$ = taxaResult?.default_photo?.url
@@ -116,42 +122,89 @@ mySiteService.getPlantData().pipe(
             }).pipe(
                 ImageService.CreateImageAndThumbnail(),
                 map(images => ImageService.toProcessedTaxonPhoto(images, taxaResult)),
+                concatMap(taxa => {
+                    taxa = taxa as ProcessedTaxonPhotoAndMetadata;
+                    const [fullUrl, thumbUrl] = getTigrisTaxonPhotoUrls(symbol, taxa);
+                    return forkJoin([
+                        defer(() => put(fullUrl, taxa.images![0], { multipart: true })),
+                        defer(() => put(thumbUrl, taxa.images![1], { multipart: true })),
+                    ]).pipe(map(() => ({ ...taxa, taxaResult, url: fullUrl })));
+                })
             )
             : of(null);
 
         const resolvedObs$ = obsJson.results!.length > 0
             ? forkJoin(
                 obsJson.results!.map(obs => {
-                    const photoStreams = (obs.photos ?? []).map(photo =>
-                        fromFetch<ArrayBuffer>(photo.url!, { selector: ImageService.getArrayBuffer })
-                            .pipe(ImageService.CreateImageAndThumbnail())
+                    const photoStreams = (obs.photos ?? []).map((photo, i) =>
+                        fromFetch<ArrayBuffer>(photo.url!, { selector: ImageService.getArrayBuffer }).pipe(
+                            ImageService.CreateImageAndThumbnail(),
+                            concatMap(group => {
+                                const processed = { ...obs, imageGroups: [group] } as ProcessedObservationPhotoAndMetadata;
+                                const [fullUrl, thumbUrl] = getTigrisObservationPhotoUrls(symbol, processed, photo);
+                                return forkJoin([
+                                    defer(() => put(fullUrl, group![0], { multipart: true })),
+                                    defer(() => put(thumbUrl, group![1], { multipart: true })),
+                                ]).pipe(map(() => ({ ...photo, url: fullUrl })));
+                            })
+                        )
                     );
-
-                    // returning each observation result mapped up to the correct image group
                     return photoStreams.length > 0
                         ? forkJoin(photoStreams).pipe(
-                            map(imageGroups => ({ ...obs, imageGroups }))
+                            map(uploadedPhotos => ({ ...obs, photos: uploadedPhotos }))
                         )
-                        : of({ ...obs, imageGroups: [] });
-                }))
+                        : of({ ...obs, photos: [] });
+                })
+            )
             : of([]);
 
         return forkJoin({ taxa: resolvedTaxa$, obsGroups: resolvedObs$ }).pipe(
             map(({ taxa, obsGroups }) => ({ plant, taxa, obsGroups }))
         );
     }),
+    // now the final concatMap is just CSV writes, all uploads already done
     concatMap(({ plant, taxa, obsGroups }) => {
         const symbol = plant.acceptedSymbol;
-        // set the url its originally from to the new url and store into the metadata
-        // TODO upload to tigris with naming schema set / metadata somehow 
 
-        
+        if (taxa) {
+            taxonCsvWriter.next({
+                acceptedSymbol: symbol,
+                id: taxa.taxaResult?.id,
+                name: taxa.taxaResult?.name,
+                preferred_common_name: taxa.taxaResult?.preferred_common_name,
+                colors: taxa.taxaResult?.colors,
+                photo_id: taxa.id,
+                photo_attribution: taxa.attribution,
+                photo_license_code: taxa.license_code,
+                photo_url: taxa.url,
+            });
+        }
 
-        // TODO upload the taxa photo, multipart true for larger objects  aka all photos? 
+        for (const obs of obsGroups) {
+            observationCsvWriter.next({
+                acceptedSymbol: symbol,
+                id: obs.id,
+                uuid: obs.uuid,
+                observed_on: obs.observed_on,
+                license_code: obs.license_code,
+                location: obs.location,
+                user_name: obs.user?.name,
+                user_id: obs.user?.id,
+                user_icon_url: obs.user?.icon_url,
+            });
 
-
-        return EMPTY;
-        // TODO use the plant info and each of the generated images /metadata to create a url for each and premade csv rows to insert/create
+            obs.photos?.forEach(photo => {
+                observationPhotoCsvWriter.next({
+                    acceptedSymbol: symbol,
+                    observation_id: obs.id!,
+                    id: photo.id,
+                    url: photo.url,  // already the tigris url
+                    attribution: photo.attribution,
+                    license_code: photo.license_code,
+                });
+            });
+        }
+        return of(null);
     }),
     // store metadata in csv
     catchError((err) => { console.error(err); return EMPTY; })
@@ -177,7 +230,7 @@ function getTigrisTaxonPhotoUrls(symbol: string, metaData: ProcessedTaxonPhotoAn
     return [fullSizeUrl + ext, thumbnailUrl + ext];
 }
 
-function getTigrisObservationPhotoUrls(symbol: string, metaData: ProcessedObservationPhotoAndMetadata, photo: Photo):[string,string]{
+function getTigrisObservationPhotoUrls(symbol: string, metaData: ProcessedObservationPhotoAndMetadata, photo: Photo): [string, string] {
     const ext = '.avif';
     const fullSizeUrl = `${symbol}_obs_${metaData.id}_${photo.id}`;
     const thumbnailUrl = fullSizeUrl + '_tb';
