@@ -6,12 +6,11 @@ import { CsvObservation, CsvObservationPhoto, CsvTaxon, Photo, PlantData, Proces
 import { fromFetch } from "rxjs/fetch";
 import { ImageService } from "./image.service";
 import fs from 'fs';
-import { upload } from "@tigrisdata/storage/client";
 import { put } from "@tigrisdata/storage";
 
 const iNaturalistService = new INaturalistService();
 const mySiteService = new WhatGrowsNativeHereService();
-const timeBetweenSpeciesRequestBundlesMs = 3_000;
+const timeBetweenSpeciesRequestBundlesMs = 5_000;
 
 const CSV_TAXON_KEYS: (keyof CsvTaxon)[] = [
     'acceptedSymbol', 'id', 'name', 'preferred_common_name', 'colors',
