@@ -345,7 +345,7 @@ export interface ObservationsResponse {
   results?: Observation[];
 }
 
-export interface ProcessedObservationPhoto extends Observation {
+export interface ProcessedObservationPhotoAndMetadata extends Observation {
  imageGroups$: Observable<ProcessedPhotoGroup>[];
 }
 
@@ -740,7 +740,7 @@ export type TaxonMetadata = Pick<TaxonPhoto, 'id' | 'attribution' | 'license_cod
 
 export type ProcessedPhotoGroup = [fullImage: Buffer<ArrayBufferLike>, thumbnail: Buffer<ArrayBufferLike>] | null;
 
-export interface ProcessedTaxonPhoto extends TaxonMetadata { 
+export interface ProcessedTaxonPhotoAndMetadata extends TaxonMetadata { 
   images: ProcessedPhotoGroup;
 }
 

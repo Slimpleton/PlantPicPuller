@@ -2,10 +2,11 @@ import { catchError, concatMap, delay, filter, map, mergeMap, startWith, switchM
 import { INaturalistService } from "./inaturalist.service";
 import { defer, EMPTY, forkJoin, of, Subject } from "rxjs";
 import { WhatGrowsNativeHereService } from "./whatgrowsnativehere.service";
-import { CsvObservation, CsvObservationPhoto, CsvTaxon, PlantData, ProcessedPhotoGroup } from "./models";
+import { CsvObservation, CsvObservationPhoto, CsvTaxon, PlantData, ProcessedObservationPhotoAndMetadata, ProcessedPhotoGroup, ProcessedTaxonPhotoAndMetadata } from "./models";
 import { fromFetch } from "rxjs/fetch";
 import { ImageService } from "./image.service";
 import fs from 'fs';
+import { upload } from "@tigrisdata/storage/client";
 
 const iNaturalistService = new INaturalistService();
 const mySiteService = new WhatGrowsNativeHereService();
@@ -140,14 +141,16 @@ mySiteService.getPlantData().pipe(
     }),
     concatMap(({ plant, taxa, obsGroups }) => {
         const symbol = plant.acceptedSymbol;
+        // set the url its originally from to the new url and store into the metadata
+        // TODO upload to tigris with naming schema set / metadata somehow 
+
+        // TODO upload the taxa photo, multipart true for larger objects  aka all photos? 
+
 
         return EMPTY;
         // TODO use the plant info and each of the generated images /metadata to create a url for each and premade csv rows to insert/create
     }),
-    // TODO how to store the name of each file and how it maps to each species. 
-    // prob need a csv map or json? maybe a csv column thats delimited diff 
     // store metadata in csv
-    // TODO upload to tigris with naming schema set / metadata somehow 
     catchError((err) => { console.error(err); return EMPTY; })
 ).subscribe({
     next: () => console.log('got to the end'),
@@ -164,6 +167,27 @@ function getCsvName(category: string): string {
     return `../assets/INaturalist_${category}_${Date.now()}.csv`;
 }
 
+function getTigrisPhotoUrls(symbol: string, photo: ProcessedTaxonPhotoAndMetadata | ProcessedObservationPhotoAndMetadata): [string, string] {
+    const ext = '.avif';
+    const fullSizeUrl = `${symbol}_${photo.id}`;
+    const thumbnailUrl = fullSizeUrl + '_tb';
+    return [fullSizeUrl + ext,thumbnailUrl + ext];
+}
+
+// function uploadPhoto(symbol: string, photo: ProcessedTaxonPhotoAndMetadata | ProcessedObservationPhotoAndMetadata) {
+//     const [fullUrl, thumbUrl] = getTigrisPhotoUrls(symbol, photo);
+//     return forkJoin([
+//         upload(fullUrl, photo.url),
+//         upload(thumbUrl, photo.thumbnail),
+//     ]).pipe(
+//         map(() => ({ 
+//             ...photo, 
+//             fullUrl, 
+//             thumbUrl,
+//             url: fullUrl  // overwrite the original iNat url with the tigris url
+//         }))
+//     );
+// }
 
 // TODO make sure to credit those with cc-by and even cc-0 cuz i luv yall save dat metadata
 

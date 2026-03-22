@@ -1,6 +1,6 @@
 import { defer, forkJoin, Observable, pipe, switchMap, UnaryFunction } from "rxjs";
 import sharp from "sharp";
-import { Observation, ProcessedObservationPhoto, ProcessedPhotoGroup, ProcessedTaxonPhoto, TaxonPhoto } from "./models";
+import { Observation, ProcessedObservationPhotoAndMetadata, ProcessedPhotoGroup, ProcessedTaxonPhotoAndMetadata, TaxonPhoto } from "./models";
 
 export class ImageService {
     public constructor() { }
@@ -26,16 +26,10 @@ export class ImageService {
     public static toProcessedTaxonPhoto(
         images: ProcessedPhotoGroup | null,
         taxonPhoto: TaxonPhoto | null
-    ): ProcessedTaxonPhoto | null {
+    ): ProcessedTaxonPhotoAndMetadata | null {
         if (!taxonPhoto)
             return null;
         const { id, attribution, license_code, url } = taxonPhoto;
         return { images: images, id, attribution, license_code, url };
-    }
-
-    public static toProcessedObservationPhoto(
-        imageGroups$: Observable<ProcessedPhotoGroup>[],
-        observationPhoto: Observation): ProcessedObservationPhoto {
-        return { imageGroups$, ...observationPhoto };
     }
 }
