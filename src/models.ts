@@ -346,7 +346,7 @@ export interface ObservationsResponse {
 }
 
 export interface ProcessedObservationPhotoAndMetadata extends Observation {
- imageGroups$: Observable<ProcessedPhotoGroup>[];
+ imageGroups: ProcessedPhotoGroup[];
 }
 
 export type CsvObservation = 

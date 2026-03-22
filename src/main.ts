@@ -2,7 +2,7 @@ import { catchError, concatMap, delay, filter, map, mergeMap, startWith, switchM
 import { INaturalistService } from "./inaturalist.service";
 import { defer, EMPTY, forkJoin, of, Subject } from "rxjs";
 import { WhatGrowsNativeHereService } from "./whatgrowsnativehere.service";
-import { CsvObservation, CsvObservationPhoto, CsvTaxon, PlantData, ProcessedObservationPhotoAndMetadata, ProcessedPhotoGroup, ProcessedTaxonPhotoAndMetadata } from "./models";
+import { CsvObservation, CsvObservationPhoto, CsvTaxon, Photo, PlantData, ProcessedObservationPhotoAndMetadata, ProcessedPhotoGroup, ProcessedTaxonPhotoAndMetadata } from "./models";
 import { fromFetch } from "rxjs/fetch";
 import { ImageService } from "./image.service";
 import fs from 'fs';
@@ -126,13 +126,14 @@ mySiteService.getPlantData().pipe(
                         fromFetch<ArrayBuffer>(photo.url!, { selector: ImageService.getArrayBuffer })
                             .pipe(ImageService.CreateImageAndThumbnail())
                     );
+
+                    // returning each observation result mapped up to the correct image group
                     return photoStreams.length > 0
                         ? forkJoin(photoStreams).pipe(
                             map(imageGroups => ({ ...obs, imageGroups }))
                         )
-                        : of({ ...obs, imageGroups: [] as ProcessedPhotoGroup[] });
-                })
-            )
+                        : of({ ...obs, imageGroups: [] });
+                }))
             : of([]);
 
         return forkJoin({ taxa: resolvedTaxa$, obsGroups: resolvedObs$ }).pipe(
@@ -143,6 +144,8 @@ mySiteService.getPlantData().pipe(
         const symbol = plant.acceptedSymbol;
         // set the url its originally from to the new url and store into the metadata
         // TODO upload to tigris with naming schema set / metadata somehow 
+
+        
 
         // TODO upload the taxa photo, multipart true for larger objects  aka all photos? 
 
@@ -167,27 +170,19 @@ function getCsvName(category: string): string {
     return `../assets/INaturalist_${category}_${Date.now()}.csv`;
 }
 
-function getTigrisPhotoUrls(symbol: string, photo: ProcessedTaxonPhotoAndMetadata | ProcessedObservationPhotoAndMetadata): [string, string] {
+function getTigrisTaxonPhotoUrls(symbol: string, metaData: ProcessedTaxonPhotoAndMetadata): [string, string] {
     const ext = '.avif';
-    const fullSizeUrl = `${symbol}_${photo.id}`;
+    const fullSizeUrl = `${symbol}_taxon_${metaData.id}`;
     const thumbnailUrl = fullSizeUrl + '_tb';
-    return [fullSizeUrl + ext,thumbnailUrl + ext];
+    return [fullSizeUrl + ext, thumbnailUrl + ext];
 }
 
-// function uploadPhoto(symbol: string, photo: ProcessedTaxonPhotoAndMetadata | ProcessedObservationPhotoAndMetadata) {
-//     const [fullUrl, thumbUrl] = getTigrisPhotoUrls(symbol, photo);
-//     return forkJoin([
-//         upload(fullUrl, photo.url),
-//         upload(thumbUrl, photo.thumbnail),
-//     ]).pipe(
-//         map(() => ({ 
-//             ...photo, 
-//             fullUrl, 
-//             thumbUrl,
-//             url: fullUrl  // overwrite the original iNat url with the tigris url
-//         }))
-//     );
-// }
+function getTigrisObservationPhotoUrls(symbol: string, metaData: ProcessedObservationPhotoAndMetadata, photo: Photo):[string,string]{
+    const ext = '.avif';
+    const fullSizeUrl = `${symbol}_obs_${metaData.id}_${photo.id}`;
+    const thumbnailUrl = fullSizeUrl + '_tb';
+    return [fullSizeUrl + ext, thumbnailUrl + ext];
+}
 
 // TODO make sure to credit those with cc-by and even cc-0 cuz i luv yall save dat metadata
 
