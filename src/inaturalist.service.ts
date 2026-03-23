@@ -1,7 +1,7 @@
 import { fromFetch } from 'rxjs/fetch';
-import { catchError, EMPTY, Observable, of, retry, switchMap, timer } from 'rxjs';
+import { catchError, EMPTY, Observable, of, switchMap } from 'rxjs';
 import { ObservationsResponse, TaxaShowResponse } from './models';
-import { retryExponential, timeBetweenRequestMs } from './main';
+import { retryExponential } from './main';
 
 export class INaturalistService {
     private static readonly _BASE_URL: string = 'https://api.inaturalist.org/v1/'
@@ -27,17 +27,19 @@ export class INaturalistService {
         });
 
         const url: URL = new URL(`${INaturalistService._BASE_URL}observations?${params}`);
-        return fromFetch<ObservationsResponse>(url.toString(), {
-            selector: (response) => {
+        return fromFetch(url.toString()).pipe(
+            retryExponential(),
+            switchMap((response) => {
                 if (!response.ok) {
                     throw new Error(`HTTP error: ${response.status} ${response.statusText} ${url}`);
                 }
                 return response.json() as Promise<ObservationsResponse>;
-            },
-        }).pipe(
-            retryExponential()
+            }),
+            catchError((err) => {
+                console.error(`getObservation failed for id ${id}:`, err);
+                return EMPTY;
+            })
         );
-
     }
 
     public getTaxa(id: number): Observable<TaxaShowResponse | null> {
@@ -57,16 +59,19 @@ export class INaturalistService {
         });
 
         const url: URL = new URL(`${INaturalistService._BASE_URL}taxa?${params}`);
-        return fromFetch<TaxaShowResponse>(url.toString(),
-            {
-                selector: (response) => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error: ${response.status} ${response.statusText} ${url}`);
-                    }
-                    return response.json() as Promise<TaxaShowResponse>;
+        return fromFetch(url.toString()).pipe(
+            retryExponential(),
+            switchMap((response) => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status} ${response.statusText} ${url}`);
                 }
-            }).pipe
-            (retryExponential());
+                return response.json() as Promise<TaxaShowResponse>;
+            }),
+            catchError((err) => {
+                console.error(`getTaxa failed for id ${id}:`, err);
+                return EMPTY;
+            })
+        );
     }
 
     public getTaxonForId(scientificName: string): Observable<number> {
@@ -92,6 +97,7 @@ export class INaturalistService {
         });
 
         return fromFetch(`${INaturalistService._BASE_URL}taxa/autocomplete?${taxaParams}`).pipe(
+            retryExponential(),
             switchMap((res: any) => res.json()),
             switchMap((json: any) => {
                 const result = json.results?.[0] ?? null;
@@ -115,7 +121,6 @@ export class INaturalistService {
                 console.error('name: ' + name, err);
                 return EMPTY;
             }),
-            retryExponential()
         );
     }
 }
