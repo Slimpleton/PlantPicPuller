@@ -243,18 +243,20 @@ function getCsvName(category: string): string {
 }
 
 function getTigrisTaxonPhotoUrls(symbol: string, metaData: ProcessedTaxonPhotoAndMetadata): [string, string] {
-    const ext = '.avif';
-    const fullSizeUrl = `${symbol}_taxon_${metaData.id}`;
-    const thumbnailUrl = fullSizeUrl + '_tb';
-    return [fullSizeUrl + ext, thumbnailUrl + ext];
+    const shortUrl = `${symbol}_taxon_${metaData.id}.avif`;
+    return getTigrisUploadUrls(shortUrl);
 }
 
 function getTigrisObservationPhotoUrls(symbol: string, metaData: ProcessedObservationPhotoAndMetadata, photo: Photo): [string, string] {
-    const ext = '.avif';
-    const fullSizeUrl = `${symbol}_obs_${metaData.id}_${photo.id}`;
-    const thumbnailUrl = fullSizeUrl + '_tb';
-    return [fullSizeUrl + ext, thumbnailUrl + ext];
+    const shortUrl = `${symbol}_obs_${metaData.id}_${photo.id}.avif`;
+    return getTigrisUploadUrls(shortUrl);
 }
 
-// TODO make sure to credit those with cc-by and even cc-0 cuz i luv yall save dat metadata
+
+function getTigrisUploadUrls(shortUrl: string): [string, string] {
+    const fullSizeUrl = 'FullSize/' + shortUrl;
+    const thumbnailUrl = 'Thumbnails/' + shortUrl;
+    return [fullSizeUrl, thumbnailUrl];
+}
+// TODO make sure to credit those with cc-by and even cc-0 cuz i luv yall save dat metadata, use attribution its got it all lesgo
 
