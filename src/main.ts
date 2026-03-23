@@ -10,7 +10,7 @@ import { put } from "@tigrisdata/storage";
 
 const iNaturalistService = new INaturalistService();
 const mySiteService = new WhatGrowsNativeHereService();
-const timeBetweenSpeciesRequestBundlesMs = 5_000;
+const timeBetweenRequestMs = 2_000;
 
 const CSV_TAXON_KEYS: (keyof CsvTaxon)[] = [
     'acceptedSymbol', 'id', 'name', 'preferred_common_name', 'colors',
@@ -77,14 +77,18 @@ mySiteService.getPlantData().pipe(
     mergeMap((x: readonly PlantData[]) => x),
     concatMap((plant: PlantData) =>
         of(plant.scientificName).pipe(
-            delay(timeBetweenSpeciesRequestBundlesMs),
             switchMap((name) => iNaturalistService.getTaxonForId(name)),
             // launch the taxa and the observations side by side
-            mergeMap((id) => forkJoin([
-                defer(() => iNaturalistService.getTaxa(id)),
-                defer(() => iNaturalistService.getObservation(id)),
-            ])),
-            map(([taxaJson, obsJson]) => {
+            switchMap((id) =>
+                of(id).pipe(
+                    switchMap(() => iNaturalistService.getTaxa(id)),
+                    delay(timeBetweenRequestMs),
+                    switchMap((taxaJson) =>
+                        iNaturalistService.getObservation(id).pipe(
+                            map((obsJson) => ({ taxaJson, obsJson })))),
+                    delay(timeBetweenRequestMs),
+                )),
+            map(({ taxaJson, obsJson }) => {
                 const taxaResult = taxaJson?.results?.[0];
                 if (taxaResult?.default_photo?.url) {
                     taxaResult.default_photo.url = taxaResult.default_photo.url.replace('square', 'original');
@@ -215,7 +219,7 @@ mySiteService.getPlantData().pipe(
         taxonCsvWriter.complete();
         observationCsvWriter.complete();
         observationPhotoCsvWriter.complete();
-    }   
+    }
 });
 
 
