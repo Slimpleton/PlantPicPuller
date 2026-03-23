@@ -114,15 +114,13 @@ mySiteService.getPlantData().pipe(
                 console.error(`Failed for ${plant.scientificName}:`, err);
                 return EMPTY;
             })), concurrentPlantsProcessing),
-    filter(({ plant, taxaJson, obsJson }) => {
-        const photoFound = !!taxaJson?.results?.[0]?.default_photo?.url;
-        if (!photoFound)
-            console.warn(`No taxa photo for ${plant.scientificName}`);
-        return photoFound;
-    }),
     concatMap(({ plant, taxaJson, obsJson }) => {
         const symbol = plant.acceptedSymbol;
         const taxaResult = taxaJson?.results?.[0];
+
+        const photoFound = !!taxaResult?.default_photo?.url;
+        if (!photoFound)
+            console.warn(`No taxa photo for ${plant.scientificName}`);
 
         const resolvedTaxa$ = taxaResult?.default_photo?.url
             ? fromFetch<ArrayBuffer>(taxaResult.default_photo.url, {
