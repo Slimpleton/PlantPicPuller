@@ -11,7 +11,7 @@ export class INaturalistService {
 
         if (Number.isNaN(id)) return EMPTY;
 
-        const perPageAmount: number = 15;
+        const perPageAmount: number = 10;
         const params = new URLSearchParams({
             'quality_grade': 'research',
             'photos': true.toString(),

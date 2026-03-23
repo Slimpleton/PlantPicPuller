@@ -5,7 +5,7 @@ import os from 'os';
 
 export class ImageService {
     public constructor() {
-        sharp.concurrency(Math.max(1, Math.floor(os.cpus().length / 4)));
+        sharp.concurrency(Math.max(1, Math.floor(os.cpus().length / 3)));
     }
 
     public static CreateImageAndThumbnail(): UnaryFunction<Observable<ArrayBuffer>, Observable<[fullImage: Buffer<ArrayBufferLike>, thumbnail: Buffer<ArrayBufferLike>]>> {

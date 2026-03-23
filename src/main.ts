@@ -7,11 +7,11 @@ import { fromFetch } from "rxjs/fetch";
 import { ImageService } from "./image.service";
 import fs from 'fs';
 import { put } from "@tigrisdata/storage";
-export const timeBetweenRequestMs = 5_000;
+const timeBetweenRequestMs = 15_000;
 export function retryExponential<T>(): UnaryFunction<Observable<T>, Observable<T>> {
     return pipe(retry({
         count: 3,
-        delay: (_, retryCount) => timer(timeBetweenRequestMs * Math.pow(3, retryCount))
+        delay: (_, retryCount) => timer(timeBetweenRequestMs * retryCount)
     }));
 }
 const iNaturalistService = new INaturalistService();
@@ -75,7 +75,7 @@ observationPhotoCsvWriter.pipe(
         complete: () => observationPhotoFileStream.close(),
     });
 
-const concurrentPlantsProcessing = 3;
+const concurrentPlantsProcessing = 2;
 // TAXA is good for one best photo, maybe do a secondary set of photos from observations for each? 
 
 mySiteService.getPlantData().pipe(
@@ -134,8 +134,8 @@ mySiteService.getPlantData().pipe(
                     taxa = taxa as ProcessedTaxonPhotoAndMetadata;
                     const [fullUrl, thumbUrl] = getTigrisTaxonPhotoUrls(symbol, taxa);
                     return forkJoin([
-                        defer(() => put(fullUrl, taxa.images![0], { multipart: true })),
-                        defer(() => put(thumbUrl, taxa.images![1], { multipart: true })),
+                        defer(() => put(fullUrl, taxa.images![0], { multipart: true })).pipe(retryExponential()),
+                        defer(() => put(thumbUrl, taxa.images![1], { multipart: true })).pipe(retryExponential()),
                     ]).pipe(map(([fullSizeUpload, thumbnailUpload]) => {
                         if (fullSizeUpload.error) throw new Error(`Full size upload failed for ${fullUrl}: ${fullSizeUpload.error.message}`);
                         if (thumbnailUpload.error) throw new Error(`Thumbnail upload failed for ${thumbUrl}: ${thumbnailUpload.error.message}`);
@@ -156,8 +156,8 @@ mySiteService.getPlantData().pipe(
                                 const processed = { ...obs, imageGroups: [group] } as ProcessedObservationPhotoAndMetadata;
                                 const [fullUrl, thumbUrl] = getTigrisObservationPhotoUrls(symbol, processed, photo);
                                 return forkJoin([
-                                    defer(() => put(fullUrl, group![0], { multipart: true })),
-                                    defer(() => put(thumbUrl, group![1], { multipart: true })),
+                                    defer(() => put(fullUrl, group![0], { multipart: true })).pipe(retryExponential()),
+                                    defer(() => put(thumbUrl, group![1], { multipart: true })).pipe(retryExponential()),
                                 ]).pipe(map(([fullSizeUpload, thumbnailUpload]) => {
                                     if (fullSizeUpload.error) throw new Error(`Full size upload failed for ${fullUrl}: ${fullSizeUpload.error.message}`);
                                     if (thumbnailUpload.error) throw new Error(`Thumbnail upload failed for ${thumbUrl}: ${thumbnailUpload.error.message}`);
