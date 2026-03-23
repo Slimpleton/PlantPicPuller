@@ -123,7 +123,7 @@ export class INaturalistService {
             }),
             catchError((err) => {
                 console.error('name: ' + name, err);
-                return EMPTY;
+                return of(Number.NaN);  // ✅ same here
             }),
         );
     }
