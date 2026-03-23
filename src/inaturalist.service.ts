@@ -7,10 +7,7 @@ export class INaturalistService {
     private static readonly _BASE_URL: string = 'https://api.inaturalist.org/v1/'
     public constructor() { }
 
-    public getObservation(id: number): Observable<ObservationsResponse> {
-
-        if (Number.isNaN(id)) return EMPTY;
-
+    public getObservation(id: number, name: string): Observable<ObservationsResponse> {
         const perPageAmount: number = 10;
         const params = new URLSearchParams({
             'quality_grade': 'research',
@@ -20,11 +17,20 @@ export class INaturalistService {
             'geo': true.toString(),
             'license': 'cc0,cc-by',
             'photo_license': 'cc0,cc-by',
-            'taxon_id': String(id),
             'per_page': String(perPageAmount),
             'order_by': 'votes',
             'order': 'desc',
         });
+
+        if (!Number.isNaN(id)) {
+            params.append('taxon_id', String(id))
+        }
+        else {
+            const cleanedName = name
+                .replace(/\b(var|subsp|ssp|f|cv)\.\s*/gi, '')
+                .trim();
+            params.append('q', cleanedName);
+        }
 
         const url: URL = new URL(`${INaturalistService._BASE_URL}observations?${params}`);
         return fromFetch(url.toString()).pipe(
@@ -46,8 +52,7 @@ export class INaturalistService {
         const perPageAmount: number = 1;
         // TODO handle not finding taxon for subspecies
         if (Number.isNaN(id)) {
-            console.warn(id, 'silent fail')
-            return EMPTY;
+            return of(null);
         }
 
         const params = new URLSearchParams({
@@ -68,7 +73,7 @@ export class INaturalistService {
             }),
             catchError((err) => {
                 console.error(`getTaxa failed for id ${id}:`, err);
-                return EMPTY;
+                return of(null);
             })
         );
     }
@@ -102,8 +107,8 @@ export class INaturalistService {
                 const result = json.results?.[0] ?? null;
 
                 if (result == null) {
-                    console.warn(`No taxon found for "${name}", skipping`);
-                    return EMPTY;
+                    console.warn(`No taxon found for ${name}`);
+                    return of(Number.NaN);
                 }
 
                 // Sanity check: make sure the match isn't suspiciously unrelated

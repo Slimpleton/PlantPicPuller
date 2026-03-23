@@ -10,7 +10,7 @@ import { put } from "@tigrisdata/storage";
 import sharp from "sharp";
 import os from 'os';
 
-const timeBetweenRequestMs = 5_000;
+const timeBetweenRequestMs = 7_000;
 export function retryExponential<T>(): UnaryFunction<Observable<T>, Observable<T>> {
     return pipe(retry({
         count: 3,
@@ -18,7 +18,7 @@ export function retryExponential<T>(): UnaryFunction<Observable<T>, Observable<T
     }));
 }
 
-sharp.concurrency(Math.max(1, Math.floor(os.cpus().length / 3)));
+sharp.concurrency(Math.max(1, Math.floor(os.cpus().length / 2)));
 
 const escape = (v: unknown): string => {
     if (typeof v === 'string') {
@@ -92,7 +92,7 @@ observationPhotoCsvWriter.pipe(
         error: (err) => console.error(err),
     });
 
-const concurrentPlantsProcessing = 2;
+const concurrentPlantsProcessing = 3;
 // TAXA is good for one best photo, maybe do a secondary set of photos from observations for each? 
 
 mySiteService.getPlantData().pipe(
@@ -106,7 +106,7 @@ mySiteService.getPlantData().pipe(
                     switchMap(() => iNaturalistService.getTaxa(id)),
                     delay(timeBetweenRequestMs),
                     switchMap((taxaJson) =>
-                        iNaturalistService.getObservation(id).pipe(
+                        iNaturalistService.getObservation(id, plant.scientificName).pipe(
                             map((obsJson) => ({ taxaJson, obsJson })))),
                     delay(timeBetweenRequestMs),
                 )),
