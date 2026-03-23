@@ -7,7 +7,7 @@ import { fromFetch } from "rxjs/fetch";
 import { ImageService } from "./image.service";
 import fs from 'fs';
 import { put } from "@tigrisdata/storage";
-const timeBetweenRequestMs = 15_000;
+const timeBetweenRequestMs = 5_000;
 export function retryExponential<T>(): UnaryFunction<Observable<T>, Observable<T>> {
     return pipe(retry({
         count: 3,
