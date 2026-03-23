@@ -1,6 +1,7 @@
 import { fromFetch } from 'rxjs/fetch';
-import { catchError, EMPTY, Observable, of, switchMap } from 'rxjs';
+import { catchError, EMPTY, Observable, of, retry, switchMap, timer } from 'rxjs';
 import { ObservationsResponse, TaxaShowResponse } from './models';
+import { retryExponential, timeBetweenRequestMs } from './main';
 
 export class INaturalistService {
     private static readonly _BASE_URL: string = 'https://api.inaturalist.org/v1/'
@@ -33,7 +34,9 @@ export class INaturalistService {
                 }
                 return response.json() as Promise<ObservationsResponse>;
             },
-        });
+        }).pipe(
+            retryExponential()
+        );
 
     }
 
@@ -62,7 +65,8 @@ export class INaturalistService {
                     }
                     return response.json() as Promise<TaxaShowResponse>;
                 }
-            });
+            }).pipe
+            (retryExponential());
     }
 
     public getTaxonForId(scientificName: string): Observable<number> {
@@ -110,7 +114,8 @@ export class INaturalistService {
             catchError((err) => {
                 console.error('name: ' + name, err);
                 return EMPTY;
-            })
+            }),
+            retryExponential()
         );
     }
 }

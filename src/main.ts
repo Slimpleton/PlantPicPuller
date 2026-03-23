@@ -1,16 +1,21 @@
-import { catchError, concatMap, delay, filter, map, mergeMap, startWith, switchMap, tap } from "rxjs/operators";
+import { catchError, concatMap, delay, filter, map, mergeMap, retry, startWith, switchMap, tap } from "rxjs/operators";
 import { INaturalistService } from "./inaturalist.service";
-import { defer, EMPTY, forkJoin, of, Subject } from "rxjs";
+import { defer, EMPTY, forkJoin, Observable, of, pipe, Subject, timer, UnaryFunction } from "rxjs";
 import { WhatGrowsNativeHereService } from "./whatgrowsnativehere.service";
 import { CsvObservation, CsvObservationPhoto, CsvTaxon, Photo, PlantData, ProcessedObservationPhotoAndMetadata, ProcessedPhotoGroup, ProcessedTaxonPhotoAndMetadata } from "./models";
 import { fromFetch } from "rxjs/fetch";
 import { ImageService } from "./image.service";
 import fs from 'fs';
 import { put } from "@tigrisdata/storage";
-
+export const timeBetweenRequestMs = 5_000;
+export function retryExponential<T>(): UnaryFunction<Observable<T>, Observable<T>> {
+    return pipe(retry({
+        count: 3,
+        delay: (_, retryCount) => timer(timeBetweenRequestMs * Math.pow(3, retryCount))
+    }));
+}
 const iNaturalistService = new INaturalistService();
 const mySiteService = new WhatGrowsNativeHereService();
-const timeBetweenRequestMs = 2_000;
 
 const CSV_TAXON_KEYS: (keyof CsvTaxon)[] = [
     'acceptedSymbol', 'id', 'name', 'preferred_common_name', 'colors',
@@ -131,7 +136,12 @@ mySiteService.getPlantData().pipe(
                     return forkJoin([
                         defer(() => put(fullUrl, taxa.images![0], { multipart: true })),
                         defer(() => put(thumbUrl, taxa.images![1], { multipart: true })),
-                    ]).pipe(map(() => ({ ...taxa, taxaResult, url: fullUrl })));
+                    ]).pipe(map(([fullSizeUpload, thumbnailUpload]) => {
+                        if (fullSizeUpload.error) throw new Error(`Full size upload failed for ${fullUrl}: ${fullSizeUpload.error.message}`);
+                        if (thumbnailUpload.error) throw new Error(`Thumbnail upload failed for ${thumbUrl}: ${thumbnailUpload.error.message}`);
+
+                        return ({ ...taxa, taxaResult, url: fullUrl });
+                    }));
                 })
             )
             : of(null);
@@ -142,13 +152,18 @@ mySiteService.getPlantData().pipe(
                     const photoStreams = (obs.photos ?? []).map((photo, i) =>
                         fromFetch<ArrayBuffer>(photo.url!, { selector: ImageService.getArrayBuffer }).pipe(
                             ImageService.CreateImageAndThumbnail(),
-                            concatMap(group => {
+                            concatMap((group: ProcessedPhotoGroup) => {
                                 const processed = { ...obs, imageGroups: [group] } as ProcessedObservationPhotoAndMetadata;
                                 const [fullUrl, thumbUrl] = getTigrisObservationPhotoUrls(symbol, processed, photo);
                                 return forkJoin([
                                     defer(() => put(fullUrl, group![0], { multipart: true })),
                                     defer(() => put(thumbUrl, group![1], { multipart: true })),
-                                ]).pipe(map(() => ({ ...photo, url: fullUrl })));
+                                ]).pipe(map(([fullSizeUpload, thumbnailUpload]) => {
+                                    if (fullSizeUpload.error) throw new Error(`Full size upload failed for ${fullUrl}: ${fullSizeUpload.error.message}`);
+                                    if (thumbnailUpload.error) throw new Error(`Thumbnail upload failed for ${thumbUrl}: ${thumbnailUpload.error.message}`);
+
+                                    return ({ ...photo, url: fullUrl })
+                                }));
                             })
                         )
                     );
