@@ -2,3 +2,4 @@ env.secrets
 dist/
 node_modules/
 assets/
+.env.secrets

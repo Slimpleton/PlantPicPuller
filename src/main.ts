@@ -70,12 +70,12 @@ observationPhotoCsvWriter.pipe(
         complete: () => observationPhotoFileStream.close(),
     });
 
+const concurrentPlantsProcessing = 3;
 // TAXA is good for one best photo, maybe do a secondary set of photos from observations for each? 
-// prob a way to do both the requests at once and combine the results
 
 mySiteService.getPlantData().pipe(
     mergeMap((x: readonly PlantData[]) => x),
-    concatMap((plant: PlantData) =>
+    mergeMap((plant: PlantData) =>
         of(plant.scientificName).pipe(
             switchMap((name) => iNaturalistService.getTaxonForId(name)),
             // launch the taxa and the observations side by side
@@ -108,7 +108,7 @@ mySiteService.getPlantData().pipe(
             catchError((err) => {
                 console.error(`Failed for ${plant.scientificName}:`, err);
                 return EMPTY;
-            }))),
+            })), concurrentPlantsProcessing),
     filter(({ plant, taxaJson, obsJson }) => {
         const photoFound = !!taxaJson?.results?.[0]?.default_photo?.url;
         if (!photoFound)
