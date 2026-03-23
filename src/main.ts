@@ -1,6 +1,6 @@
-import { catchError, concatMap, delay, filter, map, mergeMap, retry, startWith, switchMap } from "rxjs/operators";
+import { catchError, concatMap, delay, filter, map, mergeMap, retry, startWith, switchMap, toArray } from "rxjs/operators";
 import { INaturalistService } from "./inaturalist.service";
-import { defer, EMPTY, forkJoin, Observable, of, pipe, Subject, timer, UnaryFunction } from "rxjs";
+import { defer, EMPTY, forkJoin, from, Observable, of, pipe, Subject, timer, UnaryFunction } from "rxjs";
 import { WhatGrowsNativeHereService } from "./whatgrowsnativehere.service";
 import { CsvObservation, CsvObservationPhoto, CsvTaxon, Photo, PlantData, ProcessedObservationPhotoAndMetadata, ProcessedPhotoGroup, ProcessedTaxonPhotoAndMetadata } from "./models";
 import { fromFetch } from "rxjs/fetch";
@@ -147,32 +147,38 @@ mySiteService.getPlantData().pipe(
             : of(null);
 
         const resolvedObs$ = obsJson.results!.length > 0
-            ? forkJoin(
-                obsJson.results!.map(obs => {
-                    const photoStreams = (obs.photos ?? []).map((photo, i) =>
-                        fromFetch<ArrayBuffer>(photo.url!, { selector: ImageService.getArrayBuffer }).pipe(
-                            ImageService.CreateImageAndThumbnail(),
-                            concatMap((group: ProcessedPhotoGroup) => {
-                                const processed = { ...obs, imageGroups: [group] } as ProcessedObservationPhotoAndMetadata;
-                                const [fullUrl, thumbUrl] = getTigrisObservationPhotoUrls(symbol, processed, photo);
-                                return forkJoin([
-                                    defer(() => put(fullUrl, group![0], { multipart: true })).pipe(retryExponential()),
-                                    defer(() => put(thumbUrl, group![1], { multipart: true })).pipe(retryExponential()),
-                                ]).pipe(map(([fullSizeUpload, thumbnailUpload]) => {
-                                    if (fullSizeUpload.error) throw new Error(`Full size upload failed for ${fullUrl}: ${fullSizeUpload.error.message}`);
-                                    if (thumbnailUpload.error) throw new Error(`Thumbnail upload failed for ${thumbUrl}: ${thumbnailUpload.error.message}`);
-
-                                    return ({ ...photo, url: fullUrl })
-                                }));
-                            })
-                        )
-                    );
-                    return photoStreams.length > 0
-                        ? forkJoin(photoStreams).pipe(
+            ? from(obsJson.results!).pipe(
+                concatMap(obs => {
+                    const photos = obs.photos ?? [];
+                    return photos.length > 0
+                        ? from(photos).pipe(
+                            concatMap(photo =>
+                                of(photo).pipe(
+                                    delay(timeBetweenRequestMs),
+                                    switchMap(() => fromFetch<ArrayBuffer>(photo.url!, { selector: ImageService.getArrayBuffer }).pipe(
+                                        retryExponential(),
+                                        ImageService.CreateImageAndThumbnail(),
+                                        concatMap((group: ProcessedPhotoGroup) => {
+                                            const processed = { ...obs, imageGroups: [group] } as ProcessedObservationPhotoAndMetadata;
+                                            const [fullUrl, thumbUrl] = getTigrisObservationPhotoUrls(symbol, processed, photo);
+                                            return forkJoin([
+                                                defer(() => put(fullUrl, group![0], { multipart: true })).pipe(retryExponential()),
+                                                defer(() => put(thumbUrl, group![1], { multipart: true })).pipe(retryExponential()),
+                                            ]).pipe(map(([fullSizeUpload, thumbnailUpload]) => {
+                                                if (fullSizeUpload.error) throw new Error(`Full size upload failed for ${fullUrl}: ${fullSizeUpload.error.message}`);
+                                                if (thumbnailUpload.error) throw new Error(`Thumbnail upload failed for ${thumbUrl}: ${thumbnailUpload.error.message}`);
+                                                return ({ ...photo, url: fullUrl });
+                                            }));
+                                        })
+                                    ))
+                                )
+                            ),
+                            toArray(),
                             map(uploadedPhotos => ({ ...obs, photos: uploadedPhotos }))
                         )
                         : of({ ...obs, photos: [] });
-                })
+                }),
+                toArray()
             )
             : of([]);
 
