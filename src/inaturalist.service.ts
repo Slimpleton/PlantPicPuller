@@ -45,16 +45,15 @@ export class INaturalistService {
     public getTaxa(id: number): Observable<TaxaShowResponse | null> {
         const perPageAmount: number = 1;
         // TODO handle not finding taxon for subspecies
-        if (Number.isNaN(id))
+        if (Number.isNaN(id)) {
+            console.warn(id, 'silent fail')
             return EMPTY;
+        }
 
         const params = new URLSearchParams({
-            'quality_grade': 'research',
-            'license': 'cc0,cc-by',
-            'photo_license': 'cc0,cc-by',
-            'taxon_id': String(id),
+            'id': String(id),
             'per_page': String(perPageAmount),
-            'order_by': 'votes',
+            'is_active': 'true',
             'order': 'desc',
         });
 

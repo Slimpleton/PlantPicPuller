@@ -1,4 +1,4 @@
-import { catchError, concatMap, delay, filter, map, mergeMap, retry, startWith, switchMap, toArray } from "rxjs/operators";
+import { catchError, concatMap, delay, filter, finalize, map, mergeMap, retry, startWith, switchMap, toArray } from "rxjs/operators";
 import { INaturalistService } from "./inaturalist.service";
 import { defer, EMPTY, forkJoin, from, Observable, of, pipe, Subject, timer, UnaryFunction } from "rxjs";
 import { WhatGrowsNativeHereService } from "./whatgrowsnativehere.service";
@@ -7,6 +7,9 @@ import { fromFetch } from "rxjs/fetch";
 import { ImageService } from "./image.service";
 import fs from 'fs';
 import { put } from "@tigrisdata/storage";
+import sharp from "sharp";
+import os from 'os';
+
 const timeBetweenRequestMs = 5_000;
 export function retryExponential<T>(): UnaryFunction<Observable<T>, Observable<T>> {
     return pipe(retry({
@@ -14,6 +17,19 @@ export function retryExponential<T>(): UnaryFunction<Observable<T>, Observable<T
         delay: (_, retryCount) => timer(timeBetweenRequestMs * retryCount)
     }));
 }
+
+sharp.concurrency(Math.max(1, Math.floor(os.cpus().length / 3)));
+
+const escape = (v: unknown): string => {
+    if (typeof v === 'string') {
+        return `"${v.replace(/"/g, '""')}"`;
+    }
+    if (v != null && typeof v !== 'string' && Symbol.iterator in Object(v)) {
+        return `"${[...v as Iterable<unknown>].join('|').replace(/"/g, '""')}"`;
+    }
+    return `"${String(v ?? '').replace(/"/g, '""')}"`;
+};
+
 const iNaturalistService = new INaturalistService();
 const mySiteService = new WhatGrowsNativeHereService();
 
@@ -31,11 +47,11 @@ taxonCsvWriter.pipe(
     map((row: CsvTaxon | null) =>
         row === null ?
             taxonCsvHeader + '\r\n'
-            : `${row.acceptedSymbol},${row.id},${row.name},${row.preferred_common_name},${row.colors?.join('|')},${row.photo_id},${row.photo_attribution},${row.photo_license_code},${row.photo_url}\r\n`
-    )).subscribe({
+            : [row.acceptedSymbol, row.id, row.name, row.preferred_common_name, row.colors, row.photo_id, row.photo_attribution, row.photo_license_code, row.photo_url].map(escape).join(',')
+    ),
+    finalize(() => taxonFileStream.close())).subscribe({
         next: (line) => taxonFileStream.write(line),
         error: (err) => console.error(err),
-        complete: () => taxonFileStream.close(),
     });
 
 
@@ -46,15 +62,16 @@ const observationCsvName = getCsvName('OBSERVATIONS');
 const observationCsvWriter: Subject<CsvObservation> = new Subject<CsvObservation>();
 const observationFileStream = fs.createWriteStream(observationCsvName);
 
+
 observationCsvWriter.pipe(
     startWith(null),
     map((row: CsvObservation | null) =>
         row === null ? observationCsvHeader + '\r\n' :
-            `${row.acceptedSymbol},${row.id},${row.uuid},${row.observed_on},${row.license_code},${row.location},${row.user_name},${row.user_id},${row.user_icon_url}`
-    )).subscribe({
+            [row.acceptedSymbol, row.id, row.uuid, row.observed_on, row.license_code, row.location, row.user_name, row.user_id, row.user_icon_url].map(escape).join(',')
+    ),
+    finalize(() => observationFileStream.close())).subscribe({
         next: (line) => observationFileStream.write(line),
         error: (err) => console.error(err),
-        complete: () => observationFileStream.close(),
     });
 
 const CSV_OBSERVATION_PHOTO_KEYS: (keyof CsvObservationPhoto)[] = ['acceptedSymbol', 'observation_id',
@@ -68,11 +85,11 @@ observationPhotoCsvWriter.pipe(
     startWith(null),
     map((row: CsvObservationPhoto | null) =>
         row == null ? observationPhotoCsvHeader + '\r\n'
-            : `${row.acceptedSymbol},${row.observation_id},${row.id},${row.url},${row.attribution},${row.license_code}\r\n`
-    )).subscribe({
+            : [row.acceptedSymbol, row.observation_id, row.id, row.url, row.attribution, row.license_code].map(escape).join(',')
+    ),
+    finalize(() => observationPhotoFileStream.close())).subscribe({
         next: (line) => observationPhotoFileStream.write(line),
         error: (err) => console.error(err),
-        complete: () => observationPhotoFileStream.close(),
     });
 
 const concurrentPlantsProcessing = 2;
@@ -82,7 +99,7 @@ mySiteService.getPlantData().pipe(
     mergeMap((x: readonly PlantData[]) => x),
     mergeMap((plant: PlantData) =>
         of(plant.scientificName).pipe(
-            switchMap((name) => iNaturalistService.getTaxonForId(name)),
+            concatMap((name) => iNaturalistService.getTaxonForId(name)),
             // launch the taxa and the observations side by side
             switchMap((id) =>
                 of(id).pipe(
@@ -122,7 +139,7 @@ mySiteService.getPlantData().pipe(
         if (!photoFound)
             console.warn(`No taxa photo for ${plant.scientificName}`);
 
-        const resolvedTaxa$ = taxaResult?.default_photo?.url
+        const resolvedTaxa$ = taxaResult?.default_photo?.url && (taxaResult?.default_photo?.license_code == 'cc0' || taxaResult?.default_photo?.license_code == 'cc-by')
             ? fromFetch<ArrayBuffer>(taxaResult.default_photo.url, {
                 selector: ImageService.getArrayBuffer,
             }).pipe(

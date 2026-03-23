@@ -1,13 +1,8 @@
 import { defer, forkJoin, Observable, pipe, switchMap, UnaryFunction } from "rxjs";
 import sharp from "sharp";
 import { ProcessedPhotoGroup, ProcessedTaxonPhotoAndMetadata, TaxonPhoto } from "./models";
-import os from 'os';
 
 export class ImageService {
-    public constructor() {
-        sharp.concurrency(Math.max(1, Math.floor(os.cpus().length / 3)));
-    }
-
     public static CreateImageAndThumbnail(): UnaryFunction<Observable<ArrayBuffer>, Observable<[fullImage: Buffer<ArrayBufferLike>, thumbnail: Buffer<ArrayBufferLike>]>> {
         const maxThumbnailWidthPx = 400;
 
